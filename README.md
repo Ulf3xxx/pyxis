@@ -60,6 +60,7 @@ tests/        pruebas automáticas
 
 - [Esquema de datos](docs/esquema.md)
 - [Hoja de ruta](docs/hoja-de-ruta.md)
+- [Referencias: proyectos de los que aprender](docs/referencias.md)
 
 ## Licencia
 
