@@ -1,0 +1,38 @@
+{
+  "fecha": "2030-01-15",
+  "edicion": "manana",
+  "hora": "09:00",
+  "titulo": "Noticias · 15 ene 2030 · mañana (ejemplo ficticio)",
+  "resumen": "Documento de ejemplo con datos inventados para mostrar la forma de una edición.",
+  "destacados": ["El puerto de Villaejemplo reabre tras dos semanas de cierre"],
+  "temas": ["Villaejemplo", "puertos", "comercio"],
+  "noticias": [
+    {"seccion": "Economía", "titular": "El puerto de Villaejemplo reabre tras dos semanas de cierre"}
+  ],
+  "contenido": {
+    "esencial": ["El puerto de Villaejemplo vuelve a operar y los fletes empiezan a bajar."],
+    "secciones": [
+      {"id": "geo", "nombre": "Geopolítica", "nota": "Sin novedades en este ejemplo.", "noticias": []},
+      {"id": "espana", "nombre": "España", "nota": "Sin novedades en este ejemplo.", "noticias": []},
+      {"id": "internacional", "nombre": "Internacional", "nota": "Sin novedades en este ejemplo.", "noticias": []},
+      {
+        "id": "economia",
+        "nombre": "Economía y mercados",
+        "noticias": [
+          {
+            "titular": "El puerto de Villaejemplo reabre tras dos semanas de cierre",
+            "texto": "La autoridad portuaria (ficticia) anunció la reapertura completa. Los datos de este texto son inventados y solo ilustran el formato.",
+            "porque": "Muestra cómo se redacta el motivo por el que una noticia importa.",
+            "actualizacion": false,
+            "fuentes": [{"nombre": "Diario de Ejemplo", "url": "https://example.org/puerto-reabre"}]
+          }
+        ]
+      },
+      {"id": "tecnologia", "nombre": "Tecnología e IA", "nota": "Sin novedades en este ejemplo.", "noticias": []}
+    ],
+    "lecturas": [],
+    "videos": [],
+    "revision": [{"fuente": "Diario de Ejemplo", "estado": "leida"}],
+    "notas": "Ejemplo ficticio: no describe hechos reales."
+  }
+}

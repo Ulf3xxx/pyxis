@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+build/
+dist/
+.env
+# Los datos (ediciones, configuración personal) viven en un repositorio privado aparte.
+/datos/
+*.sqlite

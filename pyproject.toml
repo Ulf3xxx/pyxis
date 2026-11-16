@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyxis-brujula"
+version = "0.0.1"
+description = "Hemeroteca personal, base de conocimiento y radar de riesgos y oportunidades."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "AGPL-3.0-or-later" }
+dependencies = []
+
+[project.scripts]
+pyxis-validar = "pyxis.validar:main"
+
+[tool.setuptools]
+packages = ["pyxis"]
