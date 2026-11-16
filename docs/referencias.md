@@ -8,7 +8,7 @@ Recopilación del 16 de noviembre de 2026. Punto de partida: el tema [geopolitic
 
 - **No reconstruir un visor geopolítico completo.** World Monitor ya lo hace, es AGPL-3.0 y ofrece conectores. Conviene usarlo como fuente.
 - **Lo que Pyxis aporta de distinto:** archivo en el tiempo (hemeroteca), hilos que siguen un asunto, español y medios españoles, y un radar personal por ámbito.
-- **GDELT es el conector más prometedor** para el problema de las fuentes que no se pueden leer: da titulares y enlaces sin abrir los artículos.
+- **GDELT no sirve como fuente principal, al menos con su API gratuita.** Ver la prueba más abajo.
 
 ## Visores de acontecimientos geopolíticos
 
@@ -46,6 +46,16 @@ Del tema geopolitical-analysis (proyectos pequeños, de 1 a 11 estrellas):
 | [cyanheads/gdelt-mcp-server](https://github.com/cyanheads/gdelt-mcp-server) | Servidor MCP sobre GDELT; desglosa la cobertura por idioma o país |
 | news-aggregator-mcp-server (aiagentkarl) | Servidor MCP que junta RSS, Hacker News y GDELT sin clave |
 | [moltrus/google-news-mcp](https://github.com/moltrus/google-news-mcp) | Servidor MCP sobre los feeds de Google News |
+
+## Prueba de GDELT (16 de noviembre de 2026)
+
+Se consultó la API DOC 2.0 por cada uno de los 22 medios del panel desde una tarea de GitHub Actions, dos veces (ventanas de 24 y 72 horas, una consulta cada seis segundos como mínimo).
+
+- **Límite de uso:** en la segunda pasada, 17 de 22 consultas recibieron un rechazo por exceso de peticiones (HTTP 429). Las máquinas de GitHub comparten dirección con muchos otros usuarios.
+- **Cobertura escasa donde sí respondió:** entre 0 y 5 artículos por medio. El País y Europa Press devolvieron 2 artículos en 24 horas; infoLibre, Cadena SER y El Economista, ninguno en 72 horas.
+- **Sin confirmar:** si otra forma de consulta (por país o idioma) devolvería más, y si desde una dirección propia el límite desaparece.
+
+Conclusión: no apoyar el recolector en GDELT. Queda como fuente secundaria para medir volumen de cobertura, si se resuelve el límite de uso.
 
 ## Huecos: lo que no encontramos
 
