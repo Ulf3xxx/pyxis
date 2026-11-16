@@ -29,10 +29,10 @@ PAUSA = 6.0  # GDELT pide no superar una consulta cada 5 segundos
 AGENTE = "pyxis-sonda/0.0.1 (+https://github.com/Ulf3xxx/pyxis)"
 
 
-def consultar(dominio: str, horas: int, maximo: int = 75) -> dict:
+def consultar(dominio: str, horas: int, maximo: int = 75, operador: str = "domainis") -> dict:
     """Devuelve {"ok", "articulos", "error"} para un dominio."""
     parametros = {
-        "query": f"domainis:{dominio}",
+        "query": f"{operador}:{dominio}",
         "mode": "artlist",
         "maxrecords": str(maximo),
         "timespan": f"{horas}h",
@@ -41,9 +41,9 @@ def consultar(dominio: str, horas: int, maximo: int = 75) -> dict:
     }
     url = API + "?" + urllib.parse.urlencode(parametros)
     peticion = urllib.request.Request(url, headers={"User-Agent": AGENTE})
-    for intento in range(3):
+    for intento in range(2):
         try:
-            with urllib.request.urlopen(peticion, timeout=40) as r:
+            with urllib.request.urlopen(peticion, timeout=30) as r:
                 cuerpo = r.read().decode("utf-8", errors="replace")
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             error = f"red: {e}"
@@ -65,6 +65,13 @@ def sondear(medios: list[dict], horas: int) -> dict:
         if i:
             time.sleep(PAUSA)
         r = consultar(m["dominio"], horas)
+        operador = "domainis"
+        if r["ok"] and not r["articulos"]:
+            # «domainis» exige coincidencia exacta; «domain» admite subdominios
+            time.sleep(PAUSA)
+            r2 = consultar(m["dominio"], horas, operador="domain")
+            if r2["ok"] and r2["articulos"]:
+                r, operador = r2, "domain"
         arts = r["articulos"]
         resultados.append(
             {
@@ -72,6 +79,7 @@ def sondear(medios: list[dict], horas: int) -> dict:
                 "dominio": m["dominio"],
                 "grupo": m.get("grupo"),
                 "consulta_ok": r["ok"],
+                "operador": operador,
                 "error": r["error"],
                 "articulos": len(arts),
                 "tope_alcanzado": len(arts) >= 75,
@@ -80,7 +88,7 @@ def sondear(medios: list[dict], horas: int) -> dict:
                 "muestra": [{"titulo": a.get("title"), "url": a.get("url"), "visto": a.get("seendate")} for a in arts[:5]],
             }
         )
-        print(f"{m['nombre']:<20} {m['dominio']:<22} {'ok' if r['ok'] else 'ERROR':<6} {len(arts):>3} artículos", flush=True)
+        print(f"{m['nombre']:<20} {m['dominio']:<22} {'ok' if r['ok'] else 'ERROR':<6} {len(arts):>3} artículos  {r['error'] or ''}", flush=True)
     por_grupo: dict[str, dict] = {}
     for r in resultados:
         g = por_grupo.setdefault(r["grupo"] or "sin_grupo", {"medios": 0, "con_articulos": 0, "articulos": 0})
