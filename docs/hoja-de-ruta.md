@@ -13,8 +13,8 @@ El [esquema de datos](esquema.md) es lo que las une.
 |---|---|---|---|
 | 1 | Nombre, licencia y repositorios | Pyxis, AGPL-3.0, un repositorio público de código y uno privado de datos | Hecho |
 | 2 | Esquema de datos y validador | Formato documentado y comprobable | Hecho (edición); borradores del resto |
-| 3 | Exportar el archivo | Las ediciones y la configuración, guardadas como archivos JSON | Hecho (primera exportación, hasta el 16 de noviembre a mediodía) |
-| 4 | Sincronización continua | Cada edición nueva se guarda también como archivo, sin copiar a mano | Siguiente |
+| 3 | Exportar el archivo | Las ediciones y la configuración, guardadas como archivos JSON | Hecho: 21 ediciones, comprobadas byte a byte con la Hemeroteca |
+| 4 | Sincronización continua | Cada edición nueva se guarda también como archivo, sin copiar a mano | Hecho: copia diaria a las 21:12 (hora de Madrid) |
 | 5 | Visor independiente | Página web estática con buscador que lee los archivos JSON | Pendiente |
 | 6 | Recolector propio | Lectura de fuentes por RSS y páginas abiertas, con registro de qué fuente es accesible | Primera versión en marcha: 41 fuentes (RSS y Bluesky), cada tres horas |
 | 7 | Motor de ediciones | Redacción con un modelo de lenguaje intercambiable (de pago o local) | Pendiente |
