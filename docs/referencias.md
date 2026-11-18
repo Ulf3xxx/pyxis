@@ -57,6 +57,16 @@ Se consultó la API DOC 2.0 por cada uno de los 22 medios del panel desde una ta
 
 Conclusión: no apoyar el recolector en GDELT. Queda como fuente secundaria para medir volumen de cobertura, si se resuelve el límite de uso.
 
+## Prueba de RSS (18 de noviembre de 2026)
+
+Desde GitHub Actions, con `pyxis/sonda_rss.py`, respetando `robots.txt`:
+
+- **Primera pasada:** 13 de 22 medios del panel con feed útil.
+- **Segunda pasada:** siguiendo los directorios de feeds y direcciones conocidas, 14 de 22 (se suma El Confidencial). De 10 candidatos españoles, 6 con feed; de 19 extranjeros, 13.
+- **Fuera por decisión de cada medio:** El País y RTVE prohíben leer sus feeds en `robots.txt`; Reuters lo prohíbe todo; El Economista, El Periódico, AP y otros rechazan la conexión.
+
+Conclusión: el RSS sirve como base del recolector.
+
 ## Huecos: lo que no encontramos
 
 - Un equivalente de código abierto a la comparación de cobertura por espectro ideológico (lo que hace Ground News).
