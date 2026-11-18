@@ -67,6 +67,34 @@ Desde GitHub Actions, con `pyxis/sonda_rss.py`, respetando `robots.txt`:
 
 Conclusión: el RSS sirve como base del recolector.
 
+## Medir el sesgo
+
+Búsqueda del 18 de noviembre de 2026. No se ha probado ninguna todavía.
+
+| Proyecto | Qué hace | Utilidad para Pyxis |
+|---|---|---|
+| BABE (Spinde y otros) | 3.700 frases etiquetadas por expertos como sesgadas o no, con las palabras responsables; modelo BERT entrenado | Método de etiquetado; solo en inglés |
+| bias-detector (himel7, Hugging Face) | Clasificador RoBERTa entrenado con BABE | Comparación; solo en inglés |
+| News Deframer (MIT, Go) | Usa un modelo de lenguaje como periodista neutral, con instrucciones abiertas, para reescribir titulares y señalar el encuadre | El más aprovechable directamente: idea e instrucciones adaptables |
+| BiasScanner | Un modelo de lenguaje subraya frases sesgadas, da tipo y puntuación; extensión de navegador | Tipología de sesgos a nivel de frase |
+| FrameFinder | Herramienta abierta de análisis de encuadres | Categorías de encuadre |
+| Media Bias Detector (Penn) | Evita una puntuación global; mide inclinación y tono por separado, validados contra anotadores | Diseño: rasgos separados, no una nota |
+| PressLens | Compara cómo encuadran varios medios la misma historia (diversidad de fuentes, lenguaje cargado…) | Lo más parecido a lo que queremos mostrar |
+| FIFO | Mide el encuadre en resúmenes escritos por modelos de lenguaje | Para revisar nuestros propios resúmenes |
+| PoliticES (IberLEF) | Ideología de autores a partir de tuits en español | Poca utilidad directa |
+
+Advertencia de la literatura: los modelos de lenguaje confunden a menudo lenguaje emotivo con sesgo de encuadre. Por eso los rasgos deben ir con su motivo y comprobarse contra una muestra etiquetada a mano.
+
+## Mapas
+
+| Recurso | Qué es |
+|---|---|
+| Magrit (riatelab, GPL-3.0) | Cartografía temática en el navegador |
+| geoviz (riatelab) | Biblioteca JavaScript: coropletas, símbolos proporcionales, tipologías |
+| d3-geo y d3-geomap | Proyecciones y dibujo de mapas en SVG |
+| Natural Earth | Datos cartográficos de dominio público |
+| Atlas de El Orden Mundial | Referencia de estilo: proyección elegida por tema, pocas capas, leyenda clara |
+
 ## Huecos: lo que no encontramos
 
 - Un equivalente de código abierto a la comparación de cobertura por espectro ideológico (lo que hace Ground News).
