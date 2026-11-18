@@ -22,6 +22,7 @@ from pathlib import Path
 EDICIONES = {"manana", "mediodia", "noche", "prueba"}
 SECCIONES = ["geo", "espana", "internacional", "economia", "tecnologia"]
 ESTADOS = {"leida", "buscador", "no_accesible", "sin_novedades"}
+ESTADOS_NOTICIA = {"nueva", "actualizada", "sin_cambios"}
 RE_FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 RE_HORA = re.compile(r"^\d{2}:\d{2}$")
 
@@ -74,6 +75,8 @@ def _noticia(inf: Informe, n: object, donde: str) -> None:
     _texto(inf, n, "como_lo_cuentan", donde, obligatorio=False)
     if "actualizacion" in n and not isinstance(n["actualizacion"], bool):
         inf.error(donde, "«actualizacion» debe ser true o false")
+    if "estado" in n and n["estado"] not in ESTADOS_NOTICIA:
+        inf.error(donde, f"«estado» debe ser uno de {sorted(ESTADOS_NOTICIA)}")
     fuentes = n.get("fuentes")
     if not isinstance(fuentes, list) or not fuentes:
         inf.error(donde, "cada noticia necesita al menos una fuente")
@@ -166,6 +169,8 @@ def validar_edicion(doc: object) -> Informe:
     if not isinstance(hora, str) or not RE_HORA.match(hora):
         inf.error("hora", "debe tener el formato HH:MM")
     _texto(inf, doc, "titulo", "documento")
+    if "base" in doc and (not isinstance(doc["base"], str) or not doc["base"].strip()):
+        inf.error("base", "debe ser el identificador de la edición de la que parte")
     _texto(inf, doc, "resumen", "documento")
     _lista_textos(inf, doc, "destacados", "documento")
     _lista_textos(inf, doc, "temas", "documento")

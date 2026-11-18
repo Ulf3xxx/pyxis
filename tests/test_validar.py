@@ -40,6 +40,14 @@ class ValidarEdicion(unittest.TestCase):
         self.assertEqual(inf.errores, [])
         self.assertTrue(any("no coinciden" in a for a in inf.avisos))
 
+    def test_edicion_por_actualizacion(self):
+        doc = copy.deepcopy(EJEMPLO)
+        doc["base"] = "2030-01-15-manana"
+        doc["contenido"]["secciones"][3]["noticias"][0]["estado"] = "actualizada"
+        self.assertEqual(validar_edicion(doc).errores, [])
+        doc["contenido"]["secciones"][3]["noticias"][0]["estado"] = "otra"
+        self.assertTrue(any("estado" in e for e in validar_edicion(doc).errores))
+
     def test_edicion_antigua_con_url(self):
         doc = {k: v for k, v in EJEMPLO.items() if k != "contenido"}
         doc["url"] = "https://example.org/edicion"

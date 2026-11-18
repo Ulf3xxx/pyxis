@@ -30,6 +30,7 @@ Identificador: `AAAA-MM-DD-<edicion>`, por ejemplo `2026-11-16-manana`. Un archi
 | `noticias` | lista de `{seccion, titular}` | no | Índice plano de titulares, para listar y buscar sin abrir el contenido |
 | `contenido` | objeto | sí* | El cuerpo de la edición (ver abajo) |
 | `url` | texto | no | Solo en ediciones antiguas: enlace a la página donde se publicó |
+| `base` | texto | no | En ediciones de mediodía y noche construidas por actualización: identificador de la edición de la que parten, por ejemplo `2026-11-19-manana` |
 
 \* Las ediciones anteriores al 13 de noviembre de 2026 no tienen `contenido`: guardan solo el índice y `url`. El validador las acepta con un aviso.
 
@@ -56,6 +57,11 @@ Cada **noticia** tiene:
 | `fuentes` | lista de `{nombre, url}` | sí, al menos una | De dónde sale cada dato |
 | `como_lo_cuentan` | texto | no | Diferencias de encuadre entre medios |
 | `actualizacion` | verdadero o falso | no | Si continúa una noticia de una edición anterior |
+| `estado` | `nueva`, `actualizada` o `sin_cambios` | no | En ediciones por actualización: qué pasó con la noticia respecto a la `base` |
+
+### Ediciones por actualización
+
+Desde el 18 de noviembre de 2026, las ediciones de mediodía y noche no se redactan desde cero: copian la edición anterior del día (`base`), reescriben las noticias con novedades (`estado: "actualizada"`), añaden las nuevas (`estado: "nueva"`) y dejan el resto como estaba (`estado: "sin_cambios"`). Así cada edición es completa por sí misma y cuesta menos producirla.
 
 `revision[].estado` admite cuatro valores:
 
