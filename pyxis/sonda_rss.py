@@ -37,7 +37,7 @@ from pathlib import Path
 
 AGENTE = "pyxis-sonda/0.0.1 (+https://github.com/Ulf3xxx/pyxis)"
 PAUSA = 1.5  # segundos entre peticiones al mismo medio
-MAX_FEEDS = 6  # feeds candidatos a probar por medio
+MAX_FEEDS = 8  # feeds candidatos a probar por medio
 RUTAS = ["/rss", "/feed", "/rss.xml", "/feed.xml", "/rss/portada.xml", "/rss/", "/feeds/rss.xml"]
 RE_LINK = re.compile(r"<link\b[^>]*>", re.I)
 RE_ATTR = re.compile(r'([a-zA-Z-]+)\s*=\s*("([^"]*)"|\'([^\']*)\')')
@@ -139,29 +139,88 @@ def analizar_feed(cuerpo: bytes) -> dict | None:
     }
 
 
+RE_A = re.compile(r"<a\b[^>]*href\s*=\s*[\"']([^\"']+)[\"'][^>]*>(.*?)</a>", re.I | re.S)
+
+
+def _raiz(host: str) -> str:
+    partes = host.lower().split(".")
+    return ".".join(partes[-2:]) if len(partes) >= 2 else host
+
+
+def paginas_de_feeds(html_portada: str, base: str) -> list[str]:
+    """Enlaces de la portada que parecen llevar al directorio de feeds del propio medio."""
+    raiz = _raiz(urllib.parse.urlparse(base).hostname or "")
+    salida = []
+    for href, texto in RE_A.findall(html_portada):
+        etiqueta = re.sub(r"<[^>]+>", " ", texto).lower()
+        if "rss" in href.lower() or re.search(r"\brss\b", etiqueta):
+            url = urllib.parse.urljoin(base + "/", html.unescape(href))
+            host = urllib.parse.urlparse(url).hostname or ""
+            if url.startswith("http") and _raiz(host) == raiz:
+                salida.append(url)
+    return list(dict.fromkeys(salida))[:3]
+
+
+def feeds_en_directorio(html_pagina: str, base: str) -> list[str]:
+    salida = feeds_en_portada(html_pagina, base)
+    for href, _ in RE_A.findall(html_pagina):
+        h = href.lower()
+        if h.endswith(".xml") or "/rss" in h or "/feed" in h or "outboundfeeds" in h:
+            salida.append(urllib.parse.urljoin(base + "/", html.unescape(href)))
+    return list(dict.fromkeys(salida))
+
+
 def sondear_medio(m: dict) -> dict:
     dominio = m["dominio"]
-    base = "https://" + (dominio if dominio.startswith("www.") else "www." + dominio)
-    resultado = {"nombre": m["nombre"], "dominio": dominio, "grupo": m.get("grupo"), "feeds": [], "notas": []}
+    base = "https://" + (dominio if dominio.startswith("www.") or dominio.count(".") >= 2 else "www." + dominio)
+    resultado = {
+        "nombre": m["nombre"], "dominio": dominio, "grupo": m.get("grupo"),
+        "lista": m.get("lista", "panel"), "feeds": [], "notas": [],
+    }
+    cache: dict[str, urllib.robotparser.RobotFileParser | None] = {}
 
-    rp, estado_robots = robots(base)
-    if rp is None:  # algunos medios no usan www
-        base = "https://" + dominio
-        rp, estado_robots = robots(base)
-    resultado["robots"] = estado_robots
+    def rp_de(url: str):
+        partes = urllib.parse.urlparse(url)
+        origen = f"{partes.scheme}://{partes.netloc}"
+        if origen not in cache:
+            cache[origen], estado = robots(origen)
+            if origen == base:
+                resultado["robots"] = estado
+        return cache[origen]
+
+    if rp_de(base) is None and not dominio.startswith("www."):  # algunos medios no usan www
+        alternativa = "https://" + dominio
+        if rp_de(alternativa) is not None:
+            base = alternativa
+            resultado["robots"] = "leido"
 
     def permitido(url: str) -> bool:
+        rp = rp_de(url)
         return True if rp is None else rp.can_fetch(AGENTE, url)
 
-    candidatos: list[tuple[str, str]] = []
+    candidatos: list[tuple[str, str]] = [(u, "direccion conocida") for u in m.get("feeds", [])]
     if permitido(base + "/"):
         codigo, _, cuerpo, error = descargar(base + "/")
         resultado["portada"] = error or f"HTTP {codigo}"
         if cuerpo:
-            candidatos += [(u, "portada") for u in feeds_en_portada(cuerpo.decode("utf-8", errors="replace"), base)]
+            portada = cuerpo.decode("utf-8", errors="replace")
+            candidatos += [(u, "portada") for u in feeds_en_portada(portada, base)]
+            for pagina in paginas_de_feeds(portada, base):
+                if not permitido(pagina):
+                    resultado["notas"].append(f"robots.txt no permite {pagina}")
+                    continue
+                time.sleep(PAUSA)
+                c2, _, cuerpo2, e2 = descargar(pagina)
+                if cuerpo2:
+                    if analizar_feed(cuerpo2) is not None:
+                        candidatos.append((pagina, "directorio de feeds"))
+                    else:
+                        candidatos += [(u, "directorio de feeds") for u in feeds_en_directorio(cuerpo2.decode("utf-8", errors="replace"), pagina)]
+                    resultado.setdefault("directorios", []).append(pagina)
     else:
         resultado["portada"] = "robots.txt no permite leerla"
     candidatos += [(base + r, "ruta habitual") for r in RUTAS]
+    resultado.setdefault("robots", "no se pudo leer")
 
     vistos: set[str] = set()
     for url, origen in candidatos:
@@ -174,7 +233,7 @@ def sondear_medio(m: dict) -> dict:
         time.sleep(PAUSA)
         codigo, _, cuerpo, error = descargar(url)
         if error or not cuerpo:
-            if origen == "portada":
+            if origen != "ruta habitual":
                 resultado["notas"].append(f"{url}: {error or 'vacío'}")
             continue
         datos = analizar_feed(cuerpo)
@@ -193,24 +252,33 @@ def sondear_medio(m: dict) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Sonda de feeds RSS de un panel de medios.")
-    p.add_argument("panel")
+    p.add_argument("panel", help="panel de medios (JSON con «medios»)")
     p.add_argument("salida")
+    p.add_argument("--candidatos", help="JSON con «medios» candidatos y direcciones de feed conocidas")
     a = p.parse_args(argv)
     medios = json.loads(Path(a.panel).read_text(encoding="utf-8"))["medios"]
+    if a.candidatos:
+        extra = json.loads(Path(a.candidatos).read_text(encoding="utf-8"))
+        por_dominio = {m["dominio"]: m for m in medios}
+        for c in extra.get("medios", []):
+            if c["dominio"] in por_dominio:  # direcciones conocidas para un medio del panel
+                por_dominio[c["dominio"]].setdefault("feeds", []).extend(c.get("feeds", []))
+            else:
+                medios.append(c)
     resultados = []
     for m in medios:
         r = sondear_medio(m)
         resultados.append(r)
         mejor = max(r["feeds"], key=lambda f: f["en_24h"], default=None)
         print(
-            f"{r['nombre']:<18} {r['veredicto']:<9} feeds={len(r['feeds'])} "
+            f"{r['lista'][:12]:<12} {r['nombre']:<22} {r['veredicto']:<9} feeds={len(r['feeds'])} "
             f"24h={mejor['en_24h'] if mejor else 0:<3} extracto={'sí' if r['con_extracto'] else 'no'} "
-            f"robots={r['robots'][:30]} portada={r.get('portada', '')[:25]}",
+            f"robots={r.get('robots', '')[:30]} portada={r.get('portada', '')[:25]}",
             flush=True,
         )
     por_grupo: dict[str, dict] = {}
     for r in resultados:
-        g = por_grupo.setdefault(r["grupo"] or "sin_grupo", {"medios": 0, "utiles": 0})
+        g = por_grupo.setdefault(f"{r['lista']}/{r['grupo'] or 'sin_grupo'}", {"medios": 0, "utiles": 0})
         g["medios"] += 1
         g["utiles"] += r["veredicto"] == "util"
     informe = {
