@@ -16,7 +16,7 @@ El [esquema de datos](esquema.md) es lo que las une.
 | 3 | Exportar el archivo | Las ediciones y la configuración, guardadas como archivos JSON | Hecho (primera exportación, hasta el 16 de noviembre a mediodía) |
 | 4 | Sincronización continua | Cada edición nueva se guarda también como archivo, sin copiar a mano | Siguiente |
 | 5 | Visor independiente | Página web estática con buscador que lee los archivos JSON | Pendiente |
-| 6 | Recolector propio | Lectura de fuentes por RSS y páginas abiertas, con registro de qué fuente es accesible | En curso: sondas de GDELT y RSS hechas; 14 de 22 medios del panel con feed |
+| 6 | Recolector propio | Lectura de fuentes por RSS y páginas abiertas, con registro de qué fuente es accesible | Primera versión en marcha: 41 fuentes (RSS y Bluesky), cada tres horas |
 | 7 | Motor de ediciones | Redacción con un modelo de lenguaje intercambiable (de pago o local) | Pendiente |
 | 8 | Capa de conocimiento | Hechos, hilos y relaciones; radar semanal | Pendiente |
 | 9 | Servicio | Instalación sencilla, acceso para un grupo pequeño, documentación | Pendiente |

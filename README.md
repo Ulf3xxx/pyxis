@@ -17,7 +17,7 @@ Las dos vías comparten un mismo formato de datos, de modo que lo que produce un
 | Esquema de datos | Define la forma de una edición, un hecho, un hilo, una relación y un radar | Edición: en uso. Resto: borrador |
 | Validador | Comprueba que un archivo cumple el esquema | Disponible |
 | Visor | Página web estática para leer y buscar en el archivo | Pendiente |
-| Recolector | Lee las fuentes (RSS y páginas abiertas) | Pendiente |
+| Recolector | Guarda los titulares de las fuentes (RSS y cuentas públicas de Bluesky) | Disponible |
 | Motor de ediciones | Redacta la edición con un modelo de lenguaje intercambiable | Pendiente |
 | Capa de conocimiento | Hechos, hilos y relaciones entre noticias; radar semanal | Pendiente |
 
@@ -47,10 +47,16 @@ Para validar tu propio archivo de ediciones:
 python -m pyxis.validar /ruta/a/tus/ediciones
 ```
 
+Para recoger titulares de una lista de fuentes (formato descrito en `pyxis/recolector.py`):
+
+```bash
+python -m pyxis.recolector fuentes.json carpeta_de_salida
+```
+
 ## Estructura
 
 ```
-pyxis/        código del programa (por ahora, el validador)
+pyxis/        código del programa: validador, sondas de fuentes y recolector
 docs/         esquema de datos y hoja de ruta
 ejemplos/     una edición de ejemplo con datos ficticios
 tests/        pruebas automáticas
