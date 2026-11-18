@@ -112,18 +112,18 @@ def analizar_feed(cuerpo: bytes) -> dict | None:
     titulos, fechas, extractos, completos = [], [], 0, 0
     for e in entradas:
         hijos = {_local(h.tag): h for h in e}
-        titulos.append((hijos.get("title").text or "").strip() if hijos.get("title") is not None else "")
+        titulos.append((hijos["title"].text or "").strip() if "title" in hijos else "")
         for clave in ("pubdate", "published", "updated", "date"):
             if clave in hijos:
                 f = _fecha(hijos[clave].text)
                 if f:
                     fechas.append(f)
                     break
-        resumen = hijos.get("description") or hijos.get("summary")
+        resumen = hijos["description"] if "description" in hijos else hijos.get("summary")
         texto_resumen = re.sub(r"<[^>]+>", " ", html.unescape("".join(resumen.itertext()))) if resumen is not None else ""
         if len(texto_resumen.split()) >= 15:
             extractos += 1
-        contenido = hijos.get("encoded") or hijos.get("content")
+        contenido = hijos["encoded"] if "encoded" in hijos else hijos.get("content")
         if contenido is not None and len(re.sub(r"<[^>]+>", " ", "".join(contenido.itertext())).split()) >= 150:
             completos += 1
     ahora = dt.datetime.now(dt.timezone.utc)
