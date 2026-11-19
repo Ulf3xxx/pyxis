@@ -241,6 +241,9 @@ def leer_fuente(f: dict, rob: Robots) -> tuple[list[dict], str | None]:
 def _clave(url: str) -> str:
     p = urllib.parse.urlparse(url)
     limpia = f"{p.netloc.lower().removeprefix('www.')}{p.path.rstrip('/')}"
+    video = urllib.parse.parse_qs(p.query).get("v")  # youtube.com/watch?v=...: el vídeo está en la consulta
+    if video:
+        limpia += "?v=" + video[0]
     return hashlib.sha1(limpia.encode()).hexdigest()[:16]
 
 

@@ -125,3 +125,9 @@ def test_youtube_sin_clave(monkeypatch):
     from pyxis.recolector import leer_youtube
     monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
     assert leer_youtube({"canal": "UC" + "x" * 22}) == ([], "sin clave YOUTUBE_API_KEY")
+
+
+def test_clave_distingue_videos():
+    from pyxis.recolector import _clave
+    assert _clave("https://www.youtube.com/watch?v=a") != _clave("https://www.youtube.com/watch?v=b")
+    assert _clave("https://elpais.com/x/?utm=1") == _clave("https://elpais.com/x")
