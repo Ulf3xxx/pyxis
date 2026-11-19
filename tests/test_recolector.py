@@ -139,12 +139,12 @@ def test_puente_listas(tmp_path):
     d = tmp_path / "recoleccion" / "2026" / "11"
     d.mkdir(parents=True)
     filas = [
-        {"medio": "A", "lista": "panel", "titulo": "Uno", "url": "https://a/1", "fecha": "2026-11-19T07:00:00Z"},
+        {"medio": "A", "lista": "panel", "titulo": "Uno", "url": "https://a/1", "fecha": "2026-11-19T08:00:00Z"},
         {"medio": "A", "lista": "panel", "titulo": "Viejo", "url": "https://a/0", "fecha": "2026-11-19T06:00:00Z"},
         {"medio": "B", "lista": "analisis", "titulo": "Ensayo", "url": "https://b/1", "fecha": "2026-11-15T10:00:00Z"},
     ]
     (d / "2026-11-19.jsonl").write_text("\n".join(json.dumps(f) for f in filas))
     puente.leer_video = lambda datos, dias: ([], None)
     doc = puente.preparar("mediodia", tmp_path, dt.datetime(2026, 11, 19, 11, 0, tzinfo=dt.timezone.utc))
-    assert doc["listas"]["panel"] == "08:00 | A | Uno | https://a/1"  # 06:00Z = 07:00 Madrid, fuera de ventana
+    assert doc["listas"]["panel"] == "09:00 | A | Uno | https://a/1"  # 06:00Z = 07:00 Madrid, fuera de ventana
     assert doc["cuentas"] == {"panel": 1, "extranjero": 0, "analisis": 1, "video": 0}
