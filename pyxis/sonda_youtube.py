@@ -11,6 +11,10 @@ Para cada canal (por su @usuario):
 
 No descarga vídeos ni transcripciones: solo título, fecha y descripción del feed.
 
+Con la variable de entorno YOUTUBE_API_KEY usa en su lugar la API oficial de YouTube:
+resuelve el @usuario con channels.list y prueba la lectura de los últimos vídeos.
+(El feed público está prohibido en robots.txt de youtube.com.)
+
 Uso:
     python -m pyxis.sonda_youtube CANALES.json SALIDA.json
 
@@ -22,6 +26,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import os
 import re
 import time
 import urllib.parse
@@ -46,6 +51,39 @@ def canal_en_pagina(html: str) -> str | None:
         if m:
             return m.group(1)
     return None
+
+
+API_CANALES = "https://www.googleapis.com/youtube/v3/channels"
+
+
+def sondear_api(c: dict, clave: str) -> dict:
+    from pyxis.recolector import leer_youtube
+    r = {k: c[k] for k in c}
+    canal = c.get("canal")
+    if not canal:
+        usuario = c["usuario"] if c["usuario"].startswith("@") else "@" + c["usuario"]
+        url = API_CANALES + "?" + urllib.parse.urlencode({"part": "id,snippet", "forHandle": usuario, "key": clave})
+        codigo, _, cuerpo, error = descargar(url)
+        if error or not cuerpo:
+            r["veredicto"] = f"API: error al buscar el canal ({(error or str(codigo)).replace(clave, '***')})"
+            return r
+        items = json.loads(cuerpo).get("items", [])
+        if not items:
+            r["veredicto"] = "API: no existe un canal con ese @usuario"
+            return r
+        canal = items[0]["id"]
+        r["titulo_canal"] = items[0].get("snippet", {}).get("title")
+    r["canal"] = canal
+    entradas, error = leer_youtube({"canal": canal})
+    if error:
+        r["veredicto"] = f"API: {error}"
+        return r
+    fechas = sorted(e["fecha"] for e in entradas if e["fecha"])
+    r["entradas"] = len(entradas)
+    r["mas_reciente"] = fechas[-1] if fechas else None
+    r["muestra"] = [e["titulo"] for e in entradas[:3]]
+    r["veredicto"] = "util" if entradas else "sin_videos"
+    return r
 
 
 def sondear(c: dict, rp) -> dict:
@@ -92,11 +130,15 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("salida")
     a = p.parse_args(argv)
     canales = json.loads(Path(a.canales).read_text(encoding="utf-8"))["canales"]
-    rp, estado_robots = robots(BASE)
+    clave = os.environ.get("YOUTUBE_API_KEY")
+    if clave:
+        rp, estado_robots = None, "no aplica: se usa la API oficial"
+    else:
+        rp, estado_robots = robots(BASE)
     print(f"robots.txt de youtube.com: {estado_robots}", flush=True)
     resultados = []
     for c in canales:
-        r = sondear(c, rp)
+        r = sondear_api(c, clave) if clave else sondear(c, rp)
         resultados.append(r)
         print(f"{c['nombre']:<34} {r['veredicto']:<12} vídeos={r.get('entradas', '-'):<3} "
               f"último={r.get('mas_reciente', '-')}", flush=True)

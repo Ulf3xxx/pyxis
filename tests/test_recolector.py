@@ -103,3 +103,25 @@ def test_canal_en_pagina():
     from pyxis.sonda_youtube import canal_en_pagina
     html = '<link rel="alternate" type="application/rss+xml" href="https://www.youtube.com/feeds/videos.xml?channel_id=UC1234567890abcdefghijkl">'
     assert canal_en_pagina(html) == "UC1234567890abcdefghijkl"
+
+
+def test_entradas_youtube_y_purga(tmp_path):
+    import datetime as dt
+    from pyxis.recolector import entradas_youtube, purgar_video
+    datos = {"items": [{"snippet": {"title": "Groenlandia", "description": "El Ártico",
+             "publishedAt": "2026-11-18T10:00:00Z", "resourceId": {"videoId": "abc"}}}]}
+    assert entradas_youtube(datos) == [{"titulo": "Groenlandia", "url": "https://www.youtube.com/watch?v=abc",
+                                        "fecha": "2026-11-18T10:00:00Z", "extracto": "El Ártico"}]
+    viejo = tmp_path / "2026" / "09" / "2026-09-01.jsonl"
+    nuevo = tmp_path / "2026" / "11" / "2026-11-18.jsonl"
+    for a in (viejo, nuevo):
+        a.parent.mkdir(parents=True, exist_ok=True)
+        a.write_text("")
+    assert purgar_video(tmp_path, dt.datetime(2026, 11, 19, tzinfo=dt.timezone.utc)) == 1
+    assert not viejo.exists() and nuevo.exists()
+
+
+def test_youtube_sin_clave(monkeypatch):
+    from pyxis.recolector import leer_youtube
+    monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
+    assert leer_youtube({"canal": "UC" + "x" * 22}) == ([], "sin clave YOUTUBE_API_KEY")

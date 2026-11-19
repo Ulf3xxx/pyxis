@@ -6,7 +6,10 @@
 Lee dos tipos de fuente:
   - «rss»: feeds RSS o Atom que el propio medio publica.
   - «bluesky»: la cuenta pública del medio en Bluesky, a través de su API pública.
-  - «youtube»: el feed público de vídeos de un canal (título, fecha y descripción).
+  - «youtube»: los últimos vídeos de un canal, por la API oficial de YouTube (Data API v3),
+    con la clave en la variable de entorno YOUTUBE_API_KEY. Las normas de esa API obligan
+    a borrar o renovar sus datos a los 30 días: por eso estas entradas van a una carpeta
+    aparte (--carpeta-video) que se vacía sola. Sin clave, la fuente se salta.
 
 Respeta robots.txt, no abre artículos y no guarda textos completos: de cada
 entrada conserva el titular, el enlace, la fecha y un extracto breve.
@@ -32,6 +35,7 @@ import datetime as dt
 import hashlib
 import html
 import json
+import os
 import re
 import time
 import urllib.parse
@@ -47,7 +51,8 @@ MAX_EXTRACTO = 400  # caracteres
 DIAS_DEDUP = 4  # días anteriores que se revisan para no repetir entradas
 PAUSA = 1.0
 BLUESKY_API = "https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed"
-YOUTUBE_FEED = "https://www.youtube.com/feeds/videos.xml?channel_id="
+YOUTUBE_API = "https://www.googleapis.com/youtube/v3/playlistItems"
+DIAS_VIDEO = 30  # máximo que permiten las normas de la API de YouTube
 RE_URL = re.compile(r"https?://\S+")
 
 
@@ -142,6 +147,56 @@ def entradas_bluesky(datos: dict) -> list[dict]:
     return salida
 
 
+def entradas_youtube(datos: dict) -> list[dict]:
+    """Convierte la respuesta de playlistItems.list en entradas."""
+    salida = []
+    for item in datos.get("items", []):
+        sn = item.get("snippet", {})
+        video = (sn.get("resourceId") or {}).get("videoId")
+        if not video or not sn.get("title"):
+            continue
+        salida.append({
+            "titulo": _texto_plano(sn["title"], 300),
+            "url": f"https://www.youtube.com/watch?v={video}",
+            "fecha": _iso(_fecha(sn.get("publishedAt"))),
+            "extracto": _texto_plano(sn.get("description", "")),
+        })
+    return salida
+
+
+def leer_youtube(f: dict) -> tuple[list[dict], str | None]:
+    clave = os.environ.get("YOUTUBE_API_KEY")
+    if not clave:
+        return [], "sin clave YOUTUBE_API_KEY"
+    if not str(f.get("canal", "")).startswith("UC"):
+        return [], "falta el identificador del canal"
+    lista_subidas = "UU" + f["canal"][2:]
+    url = YOUTUBE_API + "?" + urllib.parse.urlencode(
+        {"part": "snippet", "playlistId": lista_subidas, "maxResults": 15, "key": clave})
+    codigo, _, cuerpo, error = descargar(url)
+    if error or not cuerpo:
+        return [], (error or f"respuesta vacía (HTTP {codigo})").replace(clave, "***")
+    try:
+        return entradas_youtube(json.loads(cuerpo)), None
+    except json.JSONDecodeError:
+        return [], "respuesta de YouTube no válida"
+
+
+def purgar_video(carpeta: Path, ahora: dt.datetime) -> int:
+    """Borra los archivos diarios de vídeo con más de DIAS_VIDEO días."""
+    limite = (ahora.astimezone(MADRID) - dt.timedelta(days=DIAS_VIDEO)).date()
+    borrados = 0
+    for archivo in carpeta.glob("*/*/*.jsonl"):
+        try:
+            dia = dt.date.fromisoformat(archivo.stem)
+        except ValueError:
+            continue
+        if dia < limite:
+            archivo.unlink()
+            borrados += 1
+    return borrados
+
+
 class Robots:
     """robots.txt por origen, con caché."""
 
@@ -163,7 +218,7 @@ def leer_fuente(f: dict, rob: Robots) -> tuple[list[dict], str | None]:
     if f["tipo"] == "rss":
         url = f["url"]
     elif f["tipo"] == "youtube":
-        url = YOUTUBE_FEED + f["canal"]
+        return leer_youtube(f)
     elif f["tipo"] == "bluesky":
         url = BLUESKY_API + "?" + urllib.parse.urlencode({"actor": f["cuenta"], "limit": 50, "filter": "posts_no_replies"})
     else:
@@ -174,7 +229,7 @@ def leer_fuente(f: dict, rob: Robots) -> tuple[list[dict], str | None]:
     codigo, _, cuerpo, error = descargar(url)
     if error or not cuerpo:
         return [], error or f"respuesta vacía (HTTP {codigo})"
-    if f["tipo"] in ("rss", "youtube"):
+    if f["tipo"] == "rss":
         entradas = entradas_feed(cuerpo)
         return (entradas, None) if entradas is not None else ([], "la respuesta no es un feed")
     try:
@@ -193,16 +248,18 @@ def _archivo_dia(salida: Path, dia: dt.date) -> Path:
     return salida / f"{dia:%Y}" / f"{dia:%m}" / f"{dia:%Y-%m-%d}.jsonl"
 
 
-def recolectar(fuentes: list[dict], salida: Path) -> dict:
+def recolectar(fuentes: list[dict], salida: Path, salida_video: Path | None = None) -> dict:
     ahora = dt.datetime.now(dt.timezone.utc)
     hoy = ahora.astimezone(MADRID).date()
+    salida_video = salida_video or salida
     vistas: set[str] = set()
     for i in range(DIAS_DEDUP + 1):
-        archivo = _archivo_dia(salida, hoy - dt.timedelta(days=i))
-        if archivo.exists():
-            for linea in archivo.read_text(encoding="utf-8").splitlines():
-                if linea.strip():
-                    vistas.add(json.loads(linea)["id"])
+        for carpeta in {salida, salida_video}:
+            archivo = _archivo_dia(carpeta, hoy - dt.timedelta(days=i))
+            if archivo.exists():
+                for linea in archivo.read_text(encoding="utf-8").splitlines():
+                    if linea.strip():
+                        vistas.add(json.loads(linea)["id"])
     nuevas: dict[Path, list[dict]] = {}
     estado = []
     rob = Robots()
@@ -230,7 +287,8 @@ def recolectar(fuentes: list[dict], salida: Path) -> dict:
                 **e,
             }
             dia = fecha.astimezone(MADRID).date()
-            nuevas.setdefault(_archivo_dia(salida, dia), []).append(registro)
+            destino = salida_video if f["tipo"] == "youtube" else salida
+            nuevas.setdefault(_archivo_dia(destino, dia), []).append(registro)
             n_nuevas += 1
         estado.append(
             {"id": f["id"], "nombre": f["nombre"], "tipo": f["tipo"], "ok": error is None,
@@ -243,8 +301,10 @@ def recolectar(fuentes: list[dict], salida: Path) -> dict:
         with archivo.open("a", encoding="utf-8") as fh:
             for r in sorted(registros, key=lambda r: r["fecha"] or ""):
                 fh.write(json.dumps(r, ensure_ascii=False) + "\n")
+    purgados = purgar_video(salida_video, ahora) if salida_video != salida else 0
     resumen = {
         "ejecutado": _iso(ahora),
+        "video_purgados": purgados,
         "fuentes": len(fuentes),
         "fuentes_ok": sum(e["ok"] for e in estado),
         "entradas_nuevas": sum(e["nuevas"] for e in estado),
@@ -259,9 +319,10 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Recolector de titulares de Pyxis.")
     p.add_argument("fuentes")
     p.add_argument("salida")
+    p.add_argument("--carpeta-video", help="carpeta aparte para las entradas de YouTube (se vacía a los 30 días)")
     a = p.parse_args(argv)
     fuentes = json.loads(Path(a.fuentes).read_text(encoding="utf-8"))["fuentes"]
-    r = recolectar(fuentes, Path(a.salida))
+    r = recolectar(fuentes, Path(a.salida), Path(a.carpeta_video) if a.carpeta_video else None)
     print(f"\n{r['fuentes_ok']} de {r['fuentes']} fuentes leídas; {r['entradas_nuevas']} entradas nuevas.")
     return 0
 
