@@ -6,6 +6,7 @@
 Lee dos tipos de fuente:
   - «rss»: feeds RSS o Atom que el propio medio publica.
   - «bluesky»: la cuenta pública del medio en Bluesky, a través de su API pública.
+  - «youtube»: el feed público de vídeos de un canal (título, fecha y descripción).
 
 Respeta robots.txt, no abre artículos y no guarda textos completos: de cada
 entrada conserva el titular, el enlace, la fecha y un extracto breve.
@@ -16,7 +17,8 @@ Uso:
 FUENTES.json tiene la forma
     {"fuentes": [{"id": "eldiario", "nombre": "elDiario.es", "tipo": "rss",
                   "url": "https://...", "grupo": "izq", "lista": "panel"}, ...]}
-(para Bluesky, "tipo": "bluesky" y "cuenta": "reuters.com").
+(para Bluesky, "tipo": "bluesky" y "cuenta": "reuters.com";
+para YouTube, "tipo": "youtube" y "canal": "UC..." con el identificador del canal).
 
 En CARPETA_SALIDA escribe:
   - AAAA/MM/AAAA-MM-DD.jsonl: una entrada por línea, por día de publicación (hora de Madrid).
@@ -45,6 +47,7 @@ MAX_EXTRACTO = 400  # caracteres
 DIAS_DEDUP = 4  # días anteriores que se revisan para no repetir entradas
 PAUSA = 1.0
 BLUESKY_API = "https://public.api.bsky.app/xrpc/app.bsky.feed.getAuthorFeed"
+YOUTUBE_FEED = "https://www.youtube.com/feeds/videos.xml?channel_id="
 RE_URL = re.compile(r"https?://\S+")
 
 
@@ -95,6 +98,8 @@ def entradas_feed(cuerpo: bytes) -> list[dict] | None:
                 if fecha:
                     break
         resumen = hijos["description"] if "description" in hijos else hijos.get("summary")
+        if resumen is None:  # YouTube y otros: media:group/media:description
+            resumen = next((d for d in e.iter() if _local(d.tag) == "description"), None)
         extracto = _texto_plano("".join(resumen.itertext())) if resumen is not None else ""
         if titulo and url:
             salida.append({"titulo": titulo, "url": url, "fecha": _iso(fecha), "extracto": extracto})
@@ -157,6 +162,8 @@ class Robots:
 def leer_fuente(f: dict, rob: Robots) -> tuple[list[dict], str | None]:
     if f["tipo"] == "rss":
         url = f["url"]
+    elif f["tipo"] == "youtube":
+        url = YOUTUBE_FEED + f["canal"]
     elif f["tipo"] == "bluesky":
         url = BLUESKY_API + "?" + urllib.parse.urlencode({"actor": f["cuenta"], "limit": 50, "filter": "posts_no_replies"})
     else:
@@ -167,7 +174,7 @@ def leer_fuente(f: dict, rob: Robots) -> tuple[list[dict], str | None]:
     codigo, _, cuerpo, error = descargar(url)
     if error or not cuerpo:
         return [], error or f"respuesta vacía (HTTP {codigo})"
-    if f["tipo"] == "rss":
+    if f["tipo"] in ("rss", "youtube"):
         entradas = entradas_feed(cuerpo)
         return (entradas, None) if entradas is not None else ([], "la respuesta no es un feed")
     try:

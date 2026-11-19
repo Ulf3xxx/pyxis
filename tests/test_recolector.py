@@ -79,3 +79,27 @@ class Recoleccion(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def test_feed_de_youtube():
+    from pyxis.recolector import entradas_feed
+    atom = b"""<?xml version="1.0"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xmlns:yt="http://www.youtube.com/xml/schemas/2015">
+ <entry>
+  <yt:videoId>abc</yt:videoId>
+  <title>Por que Groenlandia importa</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=abc"/>
+  <published>2026-11-18T10:00:00+00:00</published>
+  <media:group><media:title>Por que Groenlandia importa</media:title>
+   <media:description>Analisis del Artico y las bases.</media:description></media:group>
+ </entry>
+</feed>"""
+    e = entradas_feed(atom)
+    assert e == [{"titulo": "Por que Groenlandia importa", "url": "https://www.youtube.com/watch?v=abc",
+                  "fecha": "2026-11-18T10:00:00Z", "extracto": "Analisis del Artico y las bases."}]
+
+
+def test_canal_en_pagina():
+    from pyxis.sonda_youtube import canal_en_pagina
+    html = '<link rel="alternate" type="application/rss+xml" href="https://www.youtube.com/feeds/videos.xml?channel_id=UC1234567890abcdefghijkl">'
+    assert canal_en_pagina(html) == "UC1234567890abcdefghijkl"
