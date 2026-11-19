@@ -70,6 +70,15 @@ def sondear_api(c: dict, clave: str) -> dict:
         items = json.loads(cuerpo).get("items", [])
         if not items:
             r["veredicto"] = "API: no existe un canal con ese @usuario"
+            # Propuestas por nombre (search.list cuesta 100 unidades: solo en este caso)
+            url = "https://www.googleapis.com/youtube/v3/search?" + urllib.parse.urlencode(
+                {"part": "snippet", "type": "channel", "q": c["nombre"], "maxResults": 5, "key": clave})
+            codigo, _, cuerpo, error = descargar(url)
+            if cuerpo and not error:
+                r["propuestas"] = [
+                    {"canal": i["snippet"]["channelId"], "titulo": i["snippet"]["title"],
+                     "descripcion": i["snippet"].get("description", "")[:150]}
+                    for i in json.loads(cuerpo).get("items", [])]
             return r
         canal = items[0]["id"]
         r["titulo_canal"] = items[0].get("snippet", {}).get("title")
