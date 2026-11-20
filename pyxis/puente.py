@@ -6,7 +6,9 @@
 Lee recoleccion/ (titulares de prensa y análisis) y la rama «video» del repositorio de
 datos, filtra por la ventana de la edición y escribe un documento compacto en JSON, con
 una lista de texto por grupo de fuentes. Cada línea: «HH:MM | medio | titular | url»
-(hora de Madrid; en análisis y vídeo, «DD/MM HH:MM»).
+(hora de Madrid; en análisis y vídeo, «DD/MM HH:MM»). Para los medios marcados en
+config/feeds.json con "extracto_en_puente" (los que las ediciones no suelen poder abrir)
+añade al final « — » y un extracto breve.
 
 Uso:
     python -m pyxis.puente --edicion manana|mediodia|noche --datos RUTA_PYXIS_DATOS [--salida ARCHIVO]
@@ -24,13 +26,14 @@ from zoneinfo import ZoneInfo
 MADRID = ZoneInfo("Europe/Madrid")
 # Ventana de novedades (hora de Madrid) y máximo de titulares por medio
 EDICIONES = {
-    "manana": {"desde": None, "horas": 24, "max": 5},
+    "manana": {"desde": None, "horas": 24, "max": 4},
     "mediodia": {"desde": (8, 30), "max": 4},
     "noche": {"desde": (11, 30), "max": 4},
 }
 DIAS_LARGOS = 7  # análisis y vídeo: últimos 7 días
 MAX_LARGOS = 3   # por medio o canal en análisis y vídeo
 MAX_TITULAR = 130
+MAX_EXTRACTO = 100
 
 
 def _leer_jsonl(texto: str) -> list[dict]:
@@ -64,16 +67,23 @@ def _fecha(e: dict) -> dt.datetime | None:
     return dt.datetime.fromisoformat(f.replace("Z", "+00:00")) if f else None
 
 
-def _linea(e: dict, con_dia: bool) -> str:
+def _corta(texto: str, limite: int) -> str:
+    texto = " ".join(texto.split())
+    return texto if len(texto) <= limite else texto[: limite - 1].rsplit(" ", 1)[0] + "…"
+
+
+def _linea(e: dict, con_dia: bool, con_extracto: bool = False) -> str:
     f = _fecha(e).astimezone(MADRID)
     hora = f.strftime("%d/%m %H:%M" if con_dia else "%H:%M")
-    titular = " ".join(e["titulo"].split())
-    if len(titular) > MAX_TITULAR:
-        titular = titular[: MAX_TITULAR - 1].rsplit(" ", 1)[0] + "…"
-    return f"{hora} | {e['medio']} | {titular} | {e['url']}"
+    linea = f"{hora} | {e['medio']} | {_corta(e['titulo'], MAX_TITULAR)} | {e['url']}"
+    extracto = (e.get("extracto") or "").strip()
+    if con_extracto and extracto and not extracto.startswith(e["titulo"][:40]):
+        linea += " — " + _corta(extracto, MAX_EXTRACTO)
+    return linea
 
 
-def lista(entradas: list[dict], desde: dt.datetime, maximo: int, con_dia: bool) -> tuple[str, int]:
+def lista(entradas: list[dict], desde: dt.datetime, maximo: int, con_dia: bool,
+          con_extracto: set[str] = frozenset()) -> tuple[str, int]:
     por_medio: dict[str, list[dict]] = defaultdict(list)
     for e in entradas:
         f = _fecha(e)
@@ -83,7 +93,7 @@ def lista(entradas: list[dict], desde: dt.datetime, maximo: int, con_dia: bool) 
     for medio in sorted(por_medio):
         recientes = sorted(por_medio[medio], key=_fecha, reverse=True)[:maximo]
         n += len(recientes)
-        lineas += [_linea(e, con_dia) for e in recientes]
+        lineas += [_linea(e, con_dia, e.get("fuente") in con_extracto) for e in recientes]
     return "\n".join(lineas), n
 
 
@@ -98,18 +108,21 @@ def preparar(edicion: str, datos: Path, ahora: dt.datetime | None = None) -> dic
     desde_largo = ahora - dt.timedelta(days=DIAS_LARGOS)
     dias = [hoy - dt.timedelta(days=i) for i in range(DIAS_LARGOS + 1)]
     todas = leer_recoleccion(datos, dias)
+    feeds = datos / "config" / "feeds.json"
+    con_extracto = {f["id"] for f in json.loads(feeds.read_text(encoding="utf-8"))["fuentes"]
+                    if f.get("extracto_en_puente")} if feeds.exists() else set()
     videos, aviso_video = leer_video(datos, dias)
     doc = {
         "edicion": edicion,
         "fecha": hoy.isoformat(),
         "generado": ahora.strftime("%Y-%m-%d %H:%M"),
         "ventana_desde": desde.strftime("%Y-%m-%d %H:%M"),
-        "formato": "Cada línea: hora de Madrid | medio | titular | url. Análisis y vídeo: últimos 7 días, con día.",
+        "formato": "Cada línea: hora de Madrid | medio | titular | url, y a veces « — extracto» (medios que no se suelen poder abrir). Análisis y vídeo: últimos 7 días, con día.",
         "listas": {},
         "cuentas": {},
     }
     for nombre in ("panel", "extranjero"):
-        texto, n = lista([e for e in todas if e.get("lista") == nombre], desde, cfg["max"], False)
+        texto, n = lista([e for e in todas if e.get("lista") == nombre], desde, cfg["max"], False, con_extracto)
         doc["listas"][nombre], doc["cuentas"][nombre] = texto, n
     texto, n = lista([e for e in todas if e.get("lista") == "analisis"], desde_largo, MAX_LARGOS, True)
     doc["listas"]["analisis"], doc["cuentas"]["analisis"] = texto, n
