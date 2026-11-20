@@ -148,3 +148,14 @@ def test_puente_listas(tmp_path):
     doc = puente.preparar("mediodia", tmp_path, dt.datetime(2026, 11, 19, 11, 0, tzinfo=dt.timezone.utc))
     assert doc["listas"]["panel"] == "09:00 | A | Uno | https://a/1"  # 06:00Z = 07:00 Madrid, fuera de ventana
     assert doc["cuentas"] == {"panel": 1, "extranjero": 0, "analisis": 1, "video": 0}
+
+
+def test_entradas_portada():
+    from pyxis.recolector import entradas_portada
+    html = b"""<html><body><h2><a href="/espana/2026/11/20/noticia-larga-de-prueba/0003.htm">Un titular suficientemente largo para entrar</a></h2>
+    <h3><a href="https://otro.com/x">Un titular de otro dominio que no debe entrar</a></h3>
+    <h2><a href="/corto">Corto</a></h2><p><a href="/fuera">Enlace fuera de encabezado con texto largo</a></p></body></html>"""
+    e = entradas_portada(html, "https://www.lavozdegalicia.es/")
+    assert e == [{"titulo": "Un titular suficientemente largo para entrar",
+                  "url": "https://www.lavozdegalicia.es/espana/2026/11/20/noticia-larga-de-prueba/0003.htm",
+                  "fecha": None, "extracto": ""}]

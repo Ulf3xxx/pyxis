@@ -6,6 +6,9 @@
 Lee dos tipos de fuente:
   - «rss»: feeds RSS o Atom que el propio medio publica.
   - «bluesky»: la cuenta pública del medio en Bluesky, a través de su API pública.
+  - «portada»: los titulares (enlaces dentro de h1-h3) de la portada del medio, para
+    medios sin feed ni cuenta pública; respeta robots.txt y no abre los artículos.
+    No hay fecha: se usa la de la primera vez que se ve el titular.
   - «youtube»: los últimos vídeos de un canal, por la API oficial de YouTube (Data API v3),
     con la clave en la variable de entorno YOUTUBE_API_KEY. Las normas de esa API obligan
     a borrar o renovar sus datos a los 30 días: por eso estas entradas van a una carpeta
@@ -41,6 +44,7 @@ import time
 import urllib.parse
 import urllib.robotparser
 import xml.etree.ElementTree as ET
+from html.parser import HTMLParser
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -214,11 +218,60 @@ class Robots:
         return rp.can_fetch(AGENTE, url), "robots.txt leído"
 
 
+class _Titulares(HTMLParser):
+    """Recoge los enlaces que están dentro de encabezados h1-h3."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.nivel = 0
+        self.enlace: str | None = None
+        self.texto: list[str] = []
+        self.encontrados: list[tuple[str, str]] = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ("h1", "h2", "h3"):
+            self.nivel += 1
+        elif tag == "a" and self.nivel:
+            self.enlace = dict(attrs).get("href")
+            self.texto = []
+
+    def handle_endtag(self, tag):
+        if tag in ("h1", "h2", "h3") and self.nivel:
+            self.nivel -= 1
+        elif tag == "a" and self.enlace is not None:
+            self.encontrados.append((self.enlace, " ".join("".join(self.texto).split())))
+            self.enlace = None
+
+    def handle_data(self, data):
+        if self.enlace is not None:
+            self.texto.append(data)
+
+
+def entradas_portada(cuerpo: bytes, base: str, maximo: int = 60) -> list[dict]:
+    p = _Titulares()
+    p.feed(cuerpo.decode("utf-8", errors="replace"))
+    dominio = urllib.parse.urlparse(base).netloc.lower().removeprefix("www.")
+    salida, vistas = [], set()
+    for href, titulo in p.encontrados:
+        if not href or len(titulo) < 25:
+            continue
+        url = urllib.parse.urljoin(base, href).split("#")[0]
+        if not urllib.parse.urlparse(url).netloc.lower().removeprefix("www.").endswith(dominio) or url in vistas:
+            continue
+        vistas.add(url)
+        salida.append({"titulo": _texto_plano(titulo, 300), "url": url, "fecha": None, "extracto": ""})
+        if len(salida) >= maximo:
+            break
+    return salida
+
+
 def leer_fuente(f: dict, rob: Robots) -> tuple[list[dict], str | None]:
     if f["tipo"] == "rss":
         url = f["url"]
     elif f["tipo"] == "youtube":
         return leer_youtube(f)
+    elif f["tipo"] == "portada":
+        url = f["url"]
     elif f["tipo"] == "bluesky":
         url = BLUESKY_API + "?" + urllib.parse.urlencode({"actor": f["cuenta"], "limit": 50, "filter": "posts_no_replies"})
     else:
@@ -229,6 +282,9 @@ def leer_fuente(f: dict, rob: Robots) -> tuple[list[dict], str | None]:
     codigo, _, cuerpo, error = descargar(url)
     if error or not cuerpo:
         return [], error or f"respuesta vacía (HTTP {codigo})"
+    if f["tipo"] == "portada":
+        entradas = entradas_portada(cuerpo, url)
+        return (entradas, None) if entradas else ([], "no se encontraron titulares en la portada")
     if f["tipo"] == "rss":
         entradas = entradas_feed(cuerpo)
         return (entradas, None) if entradas is not None else ([], "la respuesta no es un feed")
