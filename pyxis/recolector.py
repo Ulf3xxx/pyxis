@@ -219,27 +219,31 @@ class Robots:
 
 
 class _Titulares(HTMLParser):
-    """Recoge los enlaces que están dentro de encabezados h1-h3."""
+    """Recoge enlaces con su texto y si están dentro de (o contienen) un encabezado h1-h3."""
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
         self.nivel = 0
         self.enlace: str | None = None
+        self.con_encabezado = False
         self.texto: list[str] = []
-        self.encontrados: list[tuple[str, str]] = []
+        self.encontrados: list[tuple[str, str, bool]] = []
 
     def handle_starttag(self, tag, attrs):
         if tag in ("h1", "h2", "h3"):
             self.nivel += 1
-        elif tag == "a" and self.nivel:
-            self.enlace = dict(attrs).get("href")
+            if self.enlace is not None:
+                self.con_encabezado = True
+        elif tag == "a":
+            self.enlace = dict(attrs).get("href") or ""
+            self.con_encabezado = self.nivel > 0
             self.texto = []
 
     def handle_endtag(self, tag):
         if tag in ("h1", "h2", "h3") and self.nivel:
             self.nivel -= 1
         elif tag == "a" and self.enlace is not None:
-            self.encontrados.append((self.enlace, " ".join("".join(self.texto).split())))
+            self.encontrados.append((self.enlace, " ".join("".join(self.texto).split()), self.con_encabezado))
             self.enlace = None
 
     def handle_data(self, data):
@@ -247,16 +251,33 @@ class _Titulares(HTMLParser):
             self.texto.append(data)
 
 
-def entradas_portada(cuerpo: bytes, base: str, maximo: int = 60) -> list[dict]:
+RE_ARTICULO = re.compile(r"/20\d\d/\d\d/\d\d/|\d{6,}|\.html?$")
+RE_CHARSET = re.compile(rb"""<meta[^>]+charset=["']?([\w-]+)""", re.I)
+
+
+def _decodificar(cuerpo: bytes, tipo: str = "") -> str:
+    m = re.search(r"charset=([\w-]+)", tipo or "", re.I) or RE_CHARSET.search(cuerpo[:5000])
+    codificacion = (m.group(1).decode() if isinstance(m.group(1), bytes) else m.group(1)) if m else "utf-8"
+    try:
+        return cuerpo.decode(codificacion)
+    except (LookupError, UnicodeDecodeError):
+        return cuerpo.decode("cp1252", errors="replace")
+
+
+def entradas_portada(cuerpo: bytes, base: str, maximo: int = 60, tipo: str = "") -> list[dict]:
+    """Titulares de una portada: enlaces en encabezados, o a artículos con texto largo."""
     p = _Titulares()
-    p.feed(cuerpo.decode("utf-8", errors="replace"))
+    p.feed(_decodificar(cuerpo, tipo))
     dominio = urllib.parse.urlparse(base).netloc.lower().removeprefix("www.")
     salida, vistas = [], set()
-    for href, titulo in p.encontrados:
+    for href, titulo, con_encabezado in p.encontrados:
         if not href or len(titulo) < 25:
             continue
         url = urllib.parse.urljoin(base, href).split("#")[0]
-        if not urllib.parse.urlparse(url).netloc.lower().removeprefix("www.").endswith(dominio) or url in vistas:
+        partes = urllib.parse.urlparse(url)
+        if not partes.netloc.lower().removeprefix("www.").endswith(dominio) or url in vistas:
+            continue
+        if not con_encabezado and not (len(titulo) >= 40 and RE_ARTICULO.search(partes.path)):
             continue
         vistas.add(url)
         salida.append({"titulo": _texto_plano(titulo, 300), "url": url, "fecha": None, "extracto": ""})
@@ -279,11 +300,11 @@ def leer_fuente(f: dict, rob: Robots) -> tuple[list[dict], str | None]:
     permitido, _ = rob.permite(url)
     if not permitido:
         return [], "robots.txt no lo permite"
-    codigo, _, cuerpo, error = descargar(url)
+    codigo, tipo, cuerpo, error = descargar(url)
     if error or not cuerpo:
         return [], error or f"respuesta vacía (HTTP {codigo})"
     if f["tipo"] == "portada":
-        entradas = entradas_portada(cuerpo, url)
+        entradas = entradas_portada(cuerpo, url, tipo=tipo)
         return (entradas, None) if entradas else ([], "no se encontraron titulares en la portada")
     if f["tipo"] == "rss":
         entradas = entradas_feed(cuerpo)

@@ -159,3 +159,10 @@ def test_entradas_portada():
     assert e == [{"titulo": "Un titular suficientemente largo para entrar",
                   "url": "https://www.lavozdegalicia.es/espana/2026/11/20/noticia-larga-de-prueba/0003.htm",
                   "fecha": None, "extracto": ""}]
+
+
+def test_portada_enlace_que_contiene_encabezado_y_latin1():
+    from pyxis.recolector import entradas_portada
+    html = '<meta charset="iso-8859-1"><a href="/galicia/2026/11/20/xunta-aprueba/0003_1.htm"><h2>La Xunta aprueba los presupuestos de 2027 con cambios</h2></a>'.encode("latin-1")
+    e = entradas_portada(html, "https://www.lavozdegalicia.es/")
+    assert e[0]["titulo"] == "La Xunta aprueba los presupuestos de 2027 con cambios"
