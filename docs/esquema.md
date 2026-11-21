@@ -161,3 +161,12 @@ El informe semanal. Parte de los hilos abiertos y propone qué vigilar según lo
 ```
 
 El radar ordena información para pensar. No recomienda inversiones ni sustituye el consejo de un profesional.
+
+## Vídeos de YouTube junto a las noticias
+
+Desde el 21 de noviembre de 2026, los vídeos de los canales que sigue el recolector se clasifican con el resto de la información, no en un bloque aparte.
+
+- `noticia.videos`: vídeos que tratan esa noticia.
+- `seccion.videos`: vídeos de la sección que no encajan en ninguna noticia; llevan además `tema`.
+
+Cada vídeo: `canal`, `titulo` (original), `url`, `fecha` (AAAA-MM-DD), `trata` (de qué trata, una frase) y `postura` (opinión o enfoque que presenta el canal, una frase, atribuida). Se elaboran a partir del título y la descripción del vídeo, sin visionarlo: la página lo indica. `contenido.videos` (el antiguo bloque «Para ver») queda solo para ediciones anteriores.
