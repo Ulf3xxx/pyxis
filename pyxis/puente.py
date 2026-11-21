@@ -31,7 +31,8 @@ EDICIONES = {
     "noche": {"desde": (11, 30), "max": 4},
 }
 DIAS_LARGOS = 7  # análisis y vídeo: últimos 7 días
-MAX_LARGOS = 3   # por medio o canal en análisis y vídeo
+MAX_LARGOS = 3   # por medio en análisis
+MAX_VIDEO = 6    # por canal en vídeo (se muestran todos en «Vídeos de la semana»)
 MAX_TITULAR = 130
 MAX_EXTRACTO = 100
 
@@ -126,7 +127,7 @@ def preparar(edicion: str, datos: Path, ahora: dt.datetime | None = None) -> dic
         doc["listas"][nombre], doc["cuentas"][nombre] = texto, n
     texto, n = lista([e for e in todas if e.get("lista") == "analisis"], desde_largo, MAX_LARGOS, True)
     doc["listas"]["analisis"], doc["cuentas"]["analisis"] = texto, n
-    texto, n = lista(videos, desde_largo, MAX_LARGOS, True)
+    texto, n = lista(videos, desde_largo, MAX_VIDEO, True)
     doc["listas"]["video"], doc["cuentas"]["video"] = texto, n
     if aviso_video:
         doc["aviso"] = aviso_video
