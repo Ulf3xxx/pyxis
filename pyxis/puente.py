@@ -32,7 +32,8 @@ EDICIONES = {
 }
 DIAS_LARGOS = 7  # análisis y vídeo: últimos 7 días
 MAX_LARGOS = 3   # por medio en análisis
-MAX_VIDEO = 6    # por canal en vídeo (se muestran todos en «Vídeos de la semana»)
+MAX_VIDEO = 6    # por canal en vídeo
+MAX_DESC_VIDEO = 280  # descripción de cada vídeo
 MAX_TITULAR = 130
 MAX_EXTRACTO = 100
 
@@ -73,18 +74,18 @@ def _corta(texto: str, limite: int) -> str:
     return texto if len(texto) <= limite else texto[: limite - 1].rsplit(" ", 1)[0] + "…"
 
 
-def _linea(e: dict, con_dia: bool, con_extracto: bool = False) -> str:
+def _linea(e: dict, con_dia: bool, con_extracto: bool = False, max_extracto: int = MAX_EXTRACTO) -> str:
     f = _fecha(e).astimezone(MADRID)
     hora = f.strftime("%d/%m %H:%M" if con_dia else "%H:%M")
     linea = f"{hora} | {e['medio']} | {_corta(e['titulo'], MAX_TITULAR)} | {e['url']}"
     extracto = (e.get("extracto") or "").strip()
     if con_extracto and extracto and not extracto.startswith(e["titulo"][:40]):
-        linea += " — " + _corta(extracto, MAX_EXTRACTO)
+        linea += " — " + _corta(extracto, max_extracto)
     return linea
 
 
 def lista(entradas: list[dict], desde: dt.datetime, maximo: int, con_dia: bool,
-          con_extracto: set[str] = frozenset()) -> tuple[str, int]:
+          con_extracto: set[str] | bool = frozenset(), max_extracto: int = MAX_EXTRACTO) -> tuple[str, int]:
     por_medio: dict[str, list[dict]] = defaultdict(list)
     for e in entradas:
         f = _fecha(e)
@@ -94,7 +95,8 @@ def lista(entradas: list[dict], desde: dt.datetime, maximo: int, con_dia: bool,
     for medio in sorted(por_medio):
         recientes = sorted(por_medio[medio], key=_fecha, reverse=True)[:maximo]
         n += len(recientes)
-        lineas += [_linea(e, con_dia, e.get("fuente") in con_extracto) for e in recientes]
+        lineas += [_linea(e, con_dia, con_extracto is True or e.get("fuente") in con_extracto, max_extracto)
+                   for e in recientes]
     return "\n".join(lineas), n
 
 
@@ -118,7 +120,7 @@ def preparar(edicion: str, datos: Path, ahora: dt.datetime | None = None) -> dic
         "fecha": hoy.isoformat(),
         "generado": ahora.strftime("%Y-%m-%d %H:%M"),
         "ventana_desde": desde.strftime("%Y-%m-%d %H:%M"),
-        "formato": "Cada línea: hora de Madrid | medio | titular | url, y a veces « — extracto» (medios que no se suelen poder abrir). Análisis y vídeo: últimos 7 días, con día.",
+        "formato": "Cada línea: hora de Madrid | medio | titular | url, y a veces « — extracto» (medios que no se suelen poder abrir). Análisis: últimos 7 días, con día. Vídeo: los de la ventana de la edición, con día y « — descripción» del canal.",
         "listas": {},
         "cuentas": {},
     }
@@ -127,7 +129,9 @@ def preparar(edicion: str, datos: Path, ahora: dt.datetime | None = None) -> dic
         doc["listas"][nombre], doc["cuentas"][nombre] = texto, n
     texto, n = lista([e for e in todas if e.get("lista") == "analisis"], desde_largo, MAX_LARGOS, True)
     doc["listas"]["analisis"], doc["cuentas"]["analisis"] = texto, n
-    texto, n = lista(videos, desde_largo, MAX_VIDEO, True)
+    # Vídeos: solo los de la ventana de la edición, con su descripción (para clasificarlos y
+    # describir su enfoque); la Hemeroteca reúne los de toda la semana.
+    texto, n = lista(videos, desde, MAX_VIDEO, True, True, MAX_DESC_VIDEO)
     doc["listas"]["video"], doc["cuentas"]["video"] = texto, n
     if aviso_video:
         doc["aviso"] = aviso_video

@@ -151,6 +151,24 @@ def entradas_bluesky(datos: dict) -> list[dict]:
     return salida
 
 
+RUIDO_VIDEO = re.compile(r"https?://|www\.|patrocin|sponsor|suscr[ií]b|subscribe|merch|c[oó]digo|descuento|"
+                         r"discount|patreon|instagram|twitter|tiktok|telegram|discord|facebook|linkedin|"
+                         r"\bapp\b|enlace|link|únete|join|membres|apoya|support|^\s*#|^\s*\d{1,2}:\d{2}", re.I)
+
+
+def descripcion_video(texto: str, limite: int = 1000) -> str:
+    """Descripción de un vídeo sin enlaces, patrocinios, redes ni marcas de tiempo."""
+    texto = html.unescape(texto or "")
+    frases = []
+    for linea in texto.splitlines():
+        if RUIDO_VIDEO.search(linea):  # una línea con enlace o patrocinio se descarta entera
+            continue
+        for frase in re.split(r"(?<=[.!?])\s+", linea):
+            if frase.strip() and not RUIDO_VIDEO.search(frase):
+                frases.append(frase.strip())
+    return _texto_plano(" ".join(frases), limite)
+
+
 def entradas_youtube(datos: dict) -> list[dict]:
     """Convierte la respuesta de playlistItems.list en entradas."""
     salida = []
@@ -163,7 +181,7 @@ def entradas_youtube(datos: dict) -> list[dict]:
             "titulo": _texto_plano(sn["title"], 300),
             "url": f"https://www.youtube.com/watch?v={video}",
             "fecha": _iso(_fecha(sn.get("publishedAt"))),
-            "extracto": _texto_plano(sn.get("description", "")),
+            "extracto": descripcion_video(sn.get("description", "")),
         })
     return salida
 

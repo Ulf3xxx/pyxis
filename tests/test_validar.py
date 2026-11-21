@@ -48,6 +48,18 @@ class ValidarEdicion(unittest.TestCase):
         doc["contenido"]["secciones"][3]["noticias"][0]["estado"] = "otra"
         self.assertTrue(any("estado" in e for e in validar_edicion(doc).errores))
 
+    def test_videos_en_noticias_y_secciones(self):
+        doc = copy.deepcopy(EJEMPLO)
+        sec = doc["contenido"]["secciones"][3]
+        v = {"canal": "Solo Fonseca", "titulo": "Batalla en el inframundo", "url": "https://www.youtube.com/watch?v=x",
+             "fecha": "2026-11-20", "trata": "El avance ucraniano por un gasoducto.",
+             "postura": "Lo presenta como un éxito ucraniano."}
+        sec["noticias"][0]["videos"] = [v]
+        sec["videos"] = [dict(v, tema="Guerra de Ucrania")]
+        self.assertEqual(validar_edicion(doc).errores, [])
+        sec["videos"] = [{"canal": "X", "titulo": "Y", "url": "ftp://z"}]
+        self.assertTrue(any("videos" in e for e in validar_edicion(doc).errores))
+
     def test_edicion_antigua_con_url(self):
         doc = {k: v for k, v in EJEMPLO.items() if k != "contenido"}
         doc["url"] = "https://example.org/edicion"
@@ -56,3 +68,4 @@ class ValidarEdicion(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

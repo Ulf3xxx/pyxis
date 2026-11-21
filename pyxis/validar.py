@@ -66,6 +66,28 @@ def _url(inf: Informe, valor: object, donde: str) -> None:
         inf.error(donde, "la URL debe empezar por http:// o https://")
 
 
+CLAVES_VIDEO = ("canal", "titulo", "url", "trata", "postura")
+
+
+def _videos(inf: Informe, valor: object, donde: str) -> None:
+    """Vídeos de YouTube asociados a una noticia o a una sección."""
+    if valor is None:
+        return
+    if not isinstance(valor, list):
+        inf.error(donde, "«videos» debe ser una lista")
+        return
+    for i, v in enumerate(valor):
+        d = f"{donde}.videos[{i}]"
+        if not isinstance(v, dict):
+            inf.error(d, "debe ser un objeto")
+            continue
+        for k in CLAVES_VIDEO:
+            if k == "url":
+                _url(inf, v.get("url"), d)
+            else:
+                _texto(inf, v, k, d)
+
+
 def _noticia(inf: Informe, n: object, donde: str) -> None:
     if not isinstance(n, dict):
         inf.error(donde, "la noticia debe ser un objeto")
@@ -77,6 +99,7 @@ def _noticia(inf: Informe, n: object, donde: str) -> None:
         inf.error(donde, "«actualizacion» debe ser true o false")
     if "estado" in n and n["estado"] not in ESTADOS_NOTICIA:
         inf.error(donde, f"«estado» debe ser uno de {sorted(ESTADOS_NOTICIA)}")
+    _videos(inf, n.get("videos"), donde)
     fuentes = n.get("fuentes")
     if not isinstance(fuentes, list) or not fuentes:
         inf.error(donde, "cada noticia necesita al menos una fuente")
@@ -115,6 +138,7 @@ def _contenido(inf: Informe, c: object) -> list[str]:
         _texto(inf, s, "nombre", d)
         if s.get("nota") is not None and not isinstance(s.get("nota"), str):
             inf.error(d, "«nota» debe ser un texto")
+        _videos(inf, s.get("videos"), d)
         noticias = s.get("noticias")
         if not isinstance(noticias, list):
             inf.error(d, "falta la lista «noticias»")
