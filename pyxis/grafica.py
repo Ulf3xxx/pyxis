@@ -71,7 +71,9 @@ def grafica_svg(series: list[tuple[str, list[tuple[dt.date, float]]]], titulo: s
     y1 = math.ceil((vmax + holgura) / paso) * paso
     if y1 == y0:
         y1 = y0 + paso
-    decimales = 0 if paso >= 1 else (1 if paso >= 0.1 else 2 if paso >= 0.01 else 3)
+    decimales = 0
+    while decimales < 4 and abs(paso * 10 ** decimales - round(paso * 10 ** decimales)) > 1e-9:
+        decimales += 1
     dias = max((f1 - f0).days, 1)
 
     def X(f: dt.date) -> float:
@@ -125,7 +127,9 @@ def grafica_svg(series: list[tuple[str, list[tuple[dt.date, float]]]], titulo: s
         o.append(f'<circle cx="{X(fu):.1f}" cy="{Y(vu):.1f}" r="6" fill="{color}" stroke="{FONDO}" stroke-width="2"/>')
     if pie:
         o.append(f'<text x="48" y="{ALTO - 58}" font-size="23" fill="{TEXTO}">{escape(pie)}</text>')
-    nota = f"Fuente: {fuente} · Datos hasta el {f1.day} {MESES[f1.month - 1]} {f1.year}" if fuente else ""
+    mensual = "mensual" in frecuencia.lower()
+    hasta = f"{MESES[f1.month - 1]} {f1.year}" if mensual else f"el {f1.day} {MESES[f1.month - 1]} {f1.year}"
+    nota = f"Fuente: {fuente} · Datos hasta {hasta}" if fuente else ""
     if nota:
         o.append(f'<text x="48" y="{ALTO - 20}" font-size="15" fill="{TEXTO_2}">{escape(nota)}</text>')
     o.append("</svg>")

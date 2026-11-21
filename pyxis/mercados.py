@@ -57,7 +57,8 @@ def parsear(fuente: str, texto: str) -> list[tuple[dt.date, float]]:
     return sorted(salida)
 
 
-def resumen(datos: list[tuple[dt.date, float]]) -> dict:
+def resumen(datos: list[tuple[dt.date, float]], tasa: bool = False) -> dict:
+    """Último dato y variaciones: en % para precios e índices; en puntos para tipos y tasas."""
     fu, vu = datos[-1]
 
     def hace(dias: int) -> float | None:
@@ -66,8 +67,11 @@ def resumen(datos: list[tuple[dt.date, float]]) -> dict:
         return previos[-1] if previos else None
 
     def var(ref):
-        return round((vu / ref - 1) * 100, 2) if ref else None
-    return {"ultimo": vu, "fecha": fu.isoformat(), "var_1d": var(datos[-2][1] if len(datos) > 1 else None),
+        if ref is None:
+            return None
+        return round(vu - ref, 3) if tasa else (round((vu / ref - 1) * 100, 2) if ref else None)
+    return {"ultimo": vu, "fecha": fu.isoformat(), "variacion_en": "puntos" if tasa else "%",
+            "var_anterior": var(datos[-2][1] if len(datos) > 1 else None),
             "var_1m": var(hace(30)), "var_1a": var(hace(365))}
 
 
@@ -106,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
         svg = grafica_svg([(s["titulo"], tramo)], s["titulo"], s["unidad"], s.get("pie", ""),
                           s.get("fuente_texto", ""), frecuencia=s.get("frecuencia", "Cierres diarios"))
         (graf_dir / f"{s['id']}.svg").write_text(svg, encoding="utf-8")
-        estado[s["id"]] = {"titulo": s["titulo"], "unidad": s["unidad"], **resumen(datos)}
+        estado[s["id"]] = {"titulo": s["titulo"], "unidad": s["unidad"], **resumen(datos, "%" in s["unidad"])}
         print(f"{s['id']:<14} ok  {estado[s['id']]['fecha']}  {estado[s['id']]['ultimo']}")
         time.sleep(1)
     (datos_dir / "resumen.json").write_text(json.dumps(

@@ -14,6 +14,6 @@ def test_parsear_fred_y_bce():
 def test_resumen_y_grafica():
     datos = [(dt.date(2025, 11, 20) + dt.timedelta(days=i), 100 + i) for i in range(366)]
     r = resumen(datos)
-    assert r["fecha"] == "2026-11-20" and r["var_1d"] == round((465 / 464 - 1) * 100, 2)
+    assert r["fecha"] == "2026-11-20" and r["var_anterior"] == round((465 / 464 - 1) * 100, 2)
     svg = grafica_svg([("X", datos)], "Prueba", "Puntos", "pie", "FRED")
     assert svg.startswith("<svg") and "Prueba" in svg and "Fuente: FRED" in svg
