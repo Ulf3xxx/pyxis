@@ -6,6 +6,8 @@
 Fuentes (todas permiten la descarga automática en su robots.txt):
   - «fred»: Reserva Federal de San Luis (fredgraph.csv, sin clave).
   - «bce»: portal de datos del Banco Central Europeo (data-api.ecb.europa.eu).
+  - «bde»: ficheros CSV del Banco de España (www.bde.es); "codigo" es «archivo.csv:SERIE»,
+    por ejemplo «ti_1_6.csv:DBLEESI100000000IBDI.B» para el IBEX 35 diario.
 
 Uso:
     python -m pyxis.mercados CONFIG.json CARPETA_DATOS CARPETA_GRAFICAS [--anios 2]
@@ -33,7 +35,29 @@ from pyxis.sonda_rss import descargar
 URLS = {
     "fred": "https://fred.stlouisfed.org/graph/fredgraph.csv?id={codigo}",
     "bce": "https://data-api.ecb.europa.eu/service/data/{codigo}?format=csvdata&startPeriod={desde}",
+    "bde": "https://www.bde.es/webbe/es/estadisticas/compartido/datos/csv/{archivo}",
 }
+MESES_BDE = {m: i + 1 for i, m in enumerate(["ENE", "FEB", "MAR", "ABR", "MAY", "JUN",
+                                              "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"])}
+
+
+def parsear_bde(texto: str, serie: str) -> list[tuple[dt.date, float]]:
+    """CSV del Banco de España: primera fila con los códigos de serie; filas «DD MES AAAA»."""
+    filas = list(csv.reader(io.StringIO(texto)))
+    if not filas or serie not in filas[0]:
+        return []
+    col = filas[0].index(serie)
+    salida = []
+    for f in filas[1:]:
+        partes = f[0].split() if f else []
+        if len(partes) != 3 or partes[1] not in MESES_BDE or col >= len(f):
+            continue
+        try:
+            fecha = dt.date(int(partes[2]), MESES_BDE[partes[1]], int(partes[0]))
+            salida.append((fecha, float(f[col])))
+        except ValueError:
+            continue  # día sin dato
+    return sorted(salida)
 
 
 def parsear(fuente: str, texto: str) -> list[tuple[dt.date, float]]:
@@ -90,13 +114,19 @@ def main(argv: list[str] | None = None) -> int:
     desde = (dt.date.today() - dt.timedelta(days=365 * max(a.anios, 1) + 40)).isoformat()
     estado = {}
     for s in series:
-        url = URLS[s["fuente"]].format(codigo=s["codigo"], desde=desde)
+        archivo, _, serie_bde = s["codigo"].partition(":")
+        url = URLS[s["fuente"]].format(codigo=s["codigo"], desde=desde, archivo=archivo)
         permitido, _ = rob.permite(url)
         if not permitido:
             estado[s["id"]] = {"error": "robots.txt no lo permite"}
             continue
         codigo, _, cuerpo, error = descargar(url, 20_000_000)
-        datos = parsear(s["fuente"], cuerpo.decode("utf-8", "replace")) if cuerpo and not error else []
+        if not cuerpo or error:
+            datos = []
+        elif s["fuente"] == "bde":
+            datos = parsear_bde(cuerpo.decode("latin-1", "replace"), serie_bde)
+        else:
+            datos = parsear(s["fuente"], cuerpo.decode("utf-8", "replace"))
         if not datos:
             estado[s["id"]] = {"error": error or f"sin datos (HTTP {codigo})"}
             print(f"{s['id']:<14} ERROR {estado[s['id']]['error']}")

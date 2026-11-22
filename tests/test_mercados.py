@@ -17,3 +17,9 @@ def test_resumen_y_grafica():
     assert r["fecha"] == "2026-11-20" and r["var_anterior"] == round((465 / 464 - 1) * 100, 2)
     svg = grafica_svg([("X", datos)], "Prueba", "Puntos", "pie", "FRED")
     assert svg.startswith("<svg") and "Prueba" in svg and "Fuente: FRED" in svg
+
+
+def test_parsear_bde():
+    from pyxis.mercados import parsear_bde
+    t = '"CÓDIGO DE LA SERIE",A,DBLEESI100000000IBDI.B\n"FRECUENCIA","LABORABLE","LABORABLE"\n"19 NOV 2026",1.0,15880.5\n"20 NOV 2026",1.1,_\n"FUENTE","X","Y"\n'
+    assert parsear_bde(t, "DBLEESI100000000IBDI.B") == [(dt.date(2026, 11, 19), 15880.5)]
