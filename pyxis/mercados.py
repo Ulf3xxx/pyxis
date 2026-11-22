@@ -99,6 +99,22 @@ def resumen(datos: list[tuple[dt.date, float]], tasa: bool = False) -> dict:
             "var_1m": var(hace(30)), "var_1a": var(hace(365))}
 
 
+def compacta(datos: list[tuple[dt.date, float]], anios: int = 2) -> str:
+    """Cierres semanales (último dato de cada semana) de los últimos años más el último dato,
+    en texto compacto «AAAAMMDD:valor;...» para la base de datos de la Hemeroteca."""
+    if not datos:
+        return ""
+    limite = datos[-1][0] - dt.timedelta(days=365 * anios)
+    semanas: dict[tuple[int, int], tuple[dt.date, float]] = {}
+    for f, v in datos:
+        if f >= limite:
+            semanas[f.isocalendar()[:2]] = (f, v)
+    puntos = sorted(semanas.values())
+    if puntos[-1] != datos[-1]:
+        puntos.append(datos[-1])
+    return ";".join(f"{f:%Y%m%d}:{v:.6g}" for f, v in puntos)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Series de mercado de Pyxis.")
     p.add_argument("config")
@@ -113,6 +129,7 @@ def main(argv: list[str] | None = None) -> int:
     rob = Robots()
     desde = (dt.date.today() - dt.timedelta(days=365 * max(a.anios, 1) + 40)).isoformat()
     estado = {}
+    hemeroteca: dict[str, dict] = {}
     for s in series:
         archivo, _, serie_bde = s["codigo"].partition(":")
         url = URLS[s["fuente"]].format(codigo=s["codigo"], desde=desde, archivo=archivo)
@@ -141,8 +158,15 @@ def main(argv: list[str] | None = None) -> int:
                           s.get("fuente_texto", ""), frecuencia=s.get("frecuencia", "Cierres diarios"))
         (graf_dir / f"{s['id']}.svg").write_text(svg, encoding="utf-8")
         estado[s["id"]] = {"titulo": s["titulo"], "unidad": s["unidad"], **resumen(datos, "%" in s["unidad"])}
+        hemeroteca[s["id"]] = {"titulo": s["titulo"], "unidad": s["unidad"], "pie": s.get("pie", ""),
+                               "fuente": s.get("fuente_texto", ""), "frecuencia": s.get("frecuencia", "Cierres diarios"),
+                               "puntos": compacta(datos, a.anios)}
         print(f"{s['id']:<14} ok  {estado[s['id']]['fecha']}  {estado[s['id']]['ultimo']}")
         time.sleep(1)
+    (datos_dir / "hemeroteca.json").write_text(json.dumps(
+        {"generado": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"),
+         "nota": "Cierres semanales de los dos últimos años y último dato. Formato de puntos: AAAAMMDD:valor;...",
+         "series": hemeroteca}, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
     (datos_dir / "resumen.json").write_text(json.dumps(
         {"generado": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%MZ"), "series": estado},
         ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

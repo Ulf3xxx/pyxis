@@ -23,3 +23,9 @@ def test_parsear_bde():
     from pyxis.mercados import parsear_bde
     t = '"CÓDIGO DE LA SERIE",A,DBLEESI100000000IBDI.B\n"FRECUENCIA","LABORABLE","LABORABLE"\n"19 NOV 2026",1.0,15880.5\n"20 NOV 2026",1.1,_\n"FUENTE","X","Y"\n'
     assert parsear_bde(t, "DBLEESI100000000IBDI.B") == [(dt.date(2026, 11, 19), 15880.5)]
+
+
+def test_compacta_semanal():
+    from pyxis.mercados import compacta
+    datos = [(dt.date(2026, 11, 2) + dt.timedelta(days=i), float(i)) for i in range(15)]
+    assert compacta(datos) == "20261108:6;20261115:13;20261116:14"
