@@ -20,7 +20,7 @@ import sys
 from pathlib import Path
 
 EDICIONES = {"manana", "mediodia", "noche", "prueba"}
-SECCIONES = ["geo", "espana", "internacional", "economia", "tecnologia"]
+SECCIONES = ["geo", "espana", "internacional", "economia", "tecnologia", "ia", "ambiente", "arquitectura", "positivas"]
 ESTADOS = {"leida", "buscador", "no_accesible", "sin_novedades"}
 ESTADOS_NOTICIA = {"nueva", "actualizada", "sin_cambios"}
 RE_FECHA = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -150,7 +150,7 @@ def _contenido(inf: Informe, c: object) -> list[str]:
             if isinstance(n, dict) and isinstance(n.get("titular"), str):
                 titulares.append(n["titular"])
     if vistos != [s for s in SECCIONES if s in vistos]:
-        inf.aviso("contenido.secciones", "las secciones no siguen el orden geo, espana, internacional, economia, tecnologia")
+        inf.aviso("contenido.secciones", "las secciones no siguen el orden " + ", ".join(SECCIONES))
     for campo, claves in (
         ("lecturas", ("fuente", "titulo", "url", "resumen")),
         ("videos", ("canal", "titulo", "url", "descripcion")),

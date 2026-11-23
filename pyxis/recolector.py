@@ -362,9 +362,14 @@ def recolectar(fuentes: list[dict], salida: Path, salida_video: Path | None = No
     estado = []
     rob = Robots()
     limite_antiguedad = ahora - dt.timedelta(days=DIAS_DEDUP)
+    ultimo: dict[str, float] = {}  # pausa de cortesía por servidor, no entre servidores distintos
     for f in fuentes:
-        time.sleep(PAUSA)
+        host = urllib.parse.urlparse(f.get("url", "")).netloc or f["tipo"]
+        espera = PAUSA - (time.monotonic() - ultimo.get(host, -PAUSA))
+        if espera > 0:
+            time.sleep(espera)
         entradas, error = leer_fuente(f, rob)
+        ultimo[host] = time.monotonic()
         n_nuevas = 0
         for e in entradas:
             fecha = dt.datetime.fromisoformat(e["fecha"].replace("Z", "+00:00")) if e["fecha"] else ahora
@@ -380,6 +385,7 @@ def recolectar(fuentes: list[dict], salida: Path, salida_video: Path | None = No
                 "medio": f["nombre"],
                 "grupo": f.get("grupo"),
                 "lista": f.get("lista"),
+                **({"seccion": f["seccion"]} if f.get("seccion") else {}),
                 "via": f["tipo"],
                 "recogido": _iso(ahora),
                 **e,

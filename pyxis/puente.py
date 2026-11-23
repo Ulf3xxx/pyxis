@@ -51,6 +51,31 @@ RUIDO_URL = re.compile(
     r"escaparate|ofertas)(/|$|-)", re.I)
 
 
+# Listas temáticas: fuentes especializadas (lista = tema) más los titulares de los medios
+# generales que el propio medio publica en esa sección (campo «seccion» de los feeds de
+# sección, o la dirección de la noticia). IA, además, por palabras clave del titular.
+TEMAS = {
+    "economia": {"ruta": r"/(economia|mercados|empresas|finanzas|bolsa|dinero|vivienda|inmobiliario|libremercado|economy|business|markets)(/|$)"},
+    "ciencia": {"ruta": r"/(ciencia|tecnologia|technology|science|ciencia-y-salud|innovacion|espacio|space)(/|$)"},
+    "ia": {"ruta": r"/(inteligencia-artificial|ia|ai|artificial-intelligence)(/|$)",
+           "titulo": r"\b(IA|AI|inteligencia artificial|artificial intelligence|OpenAI|ChatGPT|Anthropic|Claude|Gemini|DeepMind|Copilot|LLM|Mistral|xAI|Grok|chatbot|agentes? de IA)\b"},
+    "ambiente": {"ruta": r"/(medio-ambiente|clima|clima-y-medio-ambiente|natural|natura|sostenibilidad|environment|climate|energia-renovable)(/|$)"},
+    "arquitectura": {"ruta": r"/(arquitectura|urbanismo|construccion|architecture)(/|$)", "horas": 72},
+    "positivas": {"horas": 72},
+}
+GENERALES = ("panel", "extranjero")
+
+
+def de_tema(e: dict, tema: str) -> bool:
+    if e.get("lista") == tema or e.get("seccion") == tema:
+        return True
+    cfg = TEMAS[tema]
+    if "titulo" in cfg and e.get("lista") not in ("video", "analisis") and re.search(cfg["titulo"], e.get("titulo", "")):
+        return True
+    return (e.get("lista") in GENERALES and "ruta" in cfg
+            and bool(re.search(cfg["ruta"], urllib.parse.urlparse(e.get("url", "")).path, re.I)))
+
+
 def es_ruido(e: dict) -> bool:
     return bool(RUIDO_URL.search(urllib.parse.urlparse(e.get("url", "")).path))
 
@@ -137,14 +162,21 @@ def preparar(edicion: str, datos: Path, ahora: dt.datetime | None = None) -> dic
         "fecha": hoy.isoformat(),
         "generado": ahora.strftime("%Y-%m-%d %H:%M"),
         "ventana_desde": desde.strftime("%Y-%m-%d %H:%M"),
-        "formato": "Cada línea: hora de Madrid | medio | titular | url, y a veces « — extracto» (medios que no se suelen poder abrir). Análisis: últimos 7 días, con día. Vídeo: los de la ventana de la edición, con día y « — descripción» del canal. Historias: titulares del panel de las últimas 24 h agrupados por historia; cada línea: nº de medios | medios de cada grupo que la cubren / medios del grupo | % izq·centro·dcha (proporciones normalizadas) | aviso de punto ciego si lo hay | titular representativo | medios.",
+        "formato": "Cada línea: hora de Madrid | medio | titular | url, y a veces « — extracto» (medios que no se suelen poder abrir). Análisis: últimos 7 días, con día. Listas temáticas (economia, ciencia, ia, ambiente, arquitectura, positivas): fuentes especializadas más las secciones de los medios generales; arquitectura y positivas, últimas 72 h, con día. Vídeo: los de la ventana de la edición, con día y « — descripción» del canal. Historias: titulares del panel de las últimas 24 h agrupados por historia; cada línea: nº de medios | medios de cada grupo que la cubren / medios del grupo | % izq·centro·dcha (proporciones normalizadas) | aviso de punto ciego si lo hay | titular representativo | medios.",
         "listas": {},
         "cuentas": {},
     }
-    for nombre in ("panel", "extranjero", "economia"):
-        prensa = [e for e in todas if e.get("lista") == nombre and not es_ruido(e)]
+    for nombre in GENERALES:
+        # los titulares de los feeds de sección van solo a su lista temática
+        prensa = [e for e in todas if e.get("lista") == nombre and not e.get("seccion") and not es_ruido(e)]
         texto, n = lista(prensa, desde, cfg["max"], False, con_extracto)
         doc["listas"][nombre], doc["cuentas"][nombre] = texto, n
+    for tema, tcfg in TEMAS.items():
+        prensa = [e for e in todas if de_tema(e, tema) and e.get("lista") not in ("video", "analisis")
+                  and (e.get("lista") == tema or not es_ruido(e))]
+        desde_tema = min(desde, ahora - dt.timedelta(hours=tcfg["horas"])) if "horas" in tcfg else desde
+        texto, n = lista(prensa, desde_tema, cfg["max"], "horas" in tcfg, con_extracto)
+        doc["listas"][tema], doc["cuentas"][tema] = texto, n
     # Historias: titulares del panel de las últimas 24 h agrupados por historia, con qué parte
     # de cada grupo del panel la cubre (base de la barra de espectro y los puntos ciegos).
     panel_cfg = datos / "config" / "panel.json"

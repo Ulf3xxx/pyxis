@@ -147,7 +147,8 @@ def test_puente_listas(tmp_path):
     puente.leer_video = lambda datos, dias: ([], None)
     doc = puente.preparar("mediodia", tmp_path, dt.datetime(2026, 11, 19, 11, 0, tzinfo=dt.timezone.utc))
     assert doc["listas"]["panel"] == "09:00 | A | Uno | https://a/1"  # 06:00Z = 07:00 Madrid, fuera de ventana
-    assert doc["cuentas"] == {"panel": 1, "extranjero": 0, "economia": 0, "analisis": 1, "video": 0}
+    assert {k: doc["cuentas"][k] for k in ("panel", "extranjero", "economia", "analisis", "video")} == \
+        {"panel": 1, "extranjero": 0, "economia": 0, "analisis": 1, "video": 0}
 
 
 def test_entradas_portada():
@@ -181,3 +182,13 @@ def test_puente_quita_ruido():
     assert es_ruido({"url": "https://www.20minutos.es/deportes/tenis/alcaraz_1.html"})
     assert es_ruido({"url": "https://www.antena3.com/programas/la-voz/x.html"})
     assert not es_ruido({"url": "https://www.eldiario.es/politica/sanchez-debate_1_2.html"})
+
+
+def test_listas_tematicas():
+    from pyxis.puente import de_tema
+    assert de_tema({"lista": "panel", "url": "https://www.abc.es/economia/x.html", "titulo": "t"}, "economia")
+    assert de_tema({"lista": "panel", "seccion": "ciencia", "url": "https://x/y", "titulo": "t"}, "ciencia")
+    assert de_tema({"lista": "extranjero", "url": "https://x/y", "titulo": "OpenAI lanza un modelo"}, "ia")
+    assert not de_tema({"lista": "video", "url": "https://x/y", "titulo": "La IA y tú"}, "ia")
+    assert not de_tema({"lista": "panel", "url": "https://x/politica/y", "titulo": "Sánchez"}, "economia")
+    assert de_tema({"lista": "positivas", "url": "https://x/y", "titulo": "t"}, "positivas")
