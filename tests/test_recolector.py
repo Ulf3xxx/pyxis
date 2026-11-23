@@ -147,7 +147,7 @@ def test_puente_listas(tmp_path):
     puente.leer_video = lambda datos, dias: ([], None)
     doc = puente.preparar("mediodia", tmp_path, dt.datetime(2026, 11, 19, 11, 0, tzinfo=dt.timezone.utc))
     assert doc["listas"]["panel"] == "09:00 | A | Uno | https://a/1"  # 06:00Z = 07:00 Madrid, fuera de ventana
-    assert doc["cuentas"] == {"panel": 1, "extranjero": 0, "analisis": 1, "video": 0}
+    assert doc["cuentas"] == {"panel": 1, "extranjero": 0, "economia": 0, "analisis": 1, "video": 0}
 
 
 def test_entradas_portada():

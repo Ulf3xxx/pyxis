@@ -124,7 +124,7 @@ def preparar(edicion: str, datos: Path, ahora: dt.datetime | None = None) -> dic
         "listas": {},
         "cuentas": {},
     }
-    for nombre in ("panel", "extranjero"):
+    for nombre in ("panel", "extranjero", "economia"):
         texto, n = lista([e for e in todas if e.get("lista") == nombre], desde, cfg["max"], False, con_extracto)
         doc["listas"][nombre], doc["cuentas"][nombre] = texto, n
     texto, n = lista([e for e in todas if e.get("lista") == "analisis"], desde_largo, MAX_LARGOS, True)
