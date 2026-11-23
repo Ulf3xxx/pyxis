@@ -37,7 +37,7 @@ El [esquema de datos](esquema.md) es lo que las une.
 ## Orden de trabajo (revisado el 23 de noviembre de 2026)
 
 1. Consolidar: revisar unos días las ediciones con vídeos, gráficas y Bolsamanía; quitar ruido de los feeds (deporte, televisión, ofertas) usando feeds de sección.
-2. Equilibrar el panel en el recolector: faltan 4 de los 8 medios de izquierda (El País, Público, Cadena SER, El Periódico), 2 de centro (EFE, RTVE) y 1 de derecha (Vozpópuli). Buscar vías legítimas (cuentas públicas, portadas).
+2. Equilibrar el panel en el recolector. Hecho el 23 de noviembre: los 27 medios del panel llegan al recolector (El País, Público, Cadena SER, El Periódico y EFE por sus cuentas de Bluesky; RTVE, Vozpópuli, Antena 3 Noticias, laSexta Noticias y El Independiente por sus portadas). Las listas de las ediciones ya no llevan deporte, televisión, ocio ni compras.
 3. Agrupar los titulares del recolector por historia: base para recuperar la barra de espectro, los puntos ciegos y los rasgos de sesgo.
 4. Hilos: seguir una historia a lo largo de los días en la Hemeroteca.
 5. Radar semanal con mapas.
