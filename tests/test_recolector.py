@@ -174,3 +174,10 @@ def test_descripcion_video_sin_ruido():
          "Ucrania avanza quince kilómetros por un gasoducto en Kupiansk. Analizamos qué significa.\n"
          "00:00 Introducción\nSígueme en Instagram")
     assert descripcion_video(d) == "Ucrania avanza quince kilómetros por un gasoducto en Kupiansk. Analizamos qué significa."
+
+
+def test_puente_quita_ruido():
+    from pyxis.puente import es_ruido
+    assert es_ruido({"url": "https://www.20minutos.es/deportes/tenis/alcaraz_1.html"})
+    assert es_ruido({"url": "https://www.antena3.com/programas/la-voz/x.html"})
+    assert not es_ruido({"url": "https://www.eldiario.es/politica/sanchez-debate_1_2.html"})

@@ -18,7 +18,9 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import json
+import re
 import subprocess
+import urllib.parse
 from collections import defaultdict
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -36,6 +38,19 @@ MAX_VIDEO = 6    # por canal en vídeo
 MAX_DESC_VIDEO = 280  # descripción de cada vídeo
 MAX_TITULAR = 130
 MAX_EXTRACTO = 100
+
+
+# Secciones que no son actualidad (deporte, televisión, ocio, compras...). Se quitan de las
+# listas de prensa; los datos del recolector no se tocan.
+RUIDO_URL = re.compile(
+    r"/(deportes?|futbol|tenis|motor|formula-?1|baloncesto|television|tv|series|programas|gente|corazon|"
+    r"chic|lifestyle|gastronomia|recetas|comprar|black-friday|moda|viajes|horoscopo|loterias?|sorteos|"
+    r"videojuegos|magazine|famosos|vertele|sociedades-gastronomicas|contentfactory|bienestar|belleza|"
+    r"escaparate|ofertas)(/|$|-)", re.I)
+
+
+def es_ruido(e: dict) -> bool:
+    return bool(RUIDO_URL.search(urllib.parse.urlparse(e.get("url", "")).path))
 
 
 def _leer_jsonl(texto: str) -> list[dict]:
@@ -125,7 +140,8 @@ def preparar(edicion: str, datos: Path, ahora: dt.datetime | None = None) -> dic
         "cuentas": {},
     }
     for nombre in ("panel", "extranjero", "economia"):
-        texto, n = lista([e for e in todas if e.get("lista") == nombre], desde, cfg["max"], False, con_extracto)
+        prensa = [e for e in todas if e.get("lista") == nombre and not es_ruido(e)]
+        texto, n = lista(prensa, desde, cfg["max"], False, con_extracto)
         doc["listas"][nombre], doc["cuentas"][nombre] = texto, n
     texto, n = lista([e for e in todas if e.get("lista") == "analisis"], desde_largo, MAX_LARGOS, True)
     doc["listas"]["analisis"], doc["cuentas"]["analisis"] = texto, n
