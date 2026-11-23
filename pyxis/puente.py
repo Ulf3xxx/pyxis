@@ -40,6 +40,7 @@ MAX_VIDEO = 6    # por canal en vídeo
 MAX_DESC_VIDEO = 280  # descripción de cada vídeo
 MAX_TITULAR = 130
 MAX_EXTRACTO = 100
+MAX_TEMA = 3     # titulares por medio en las listas temáticas
 
 
 # Secciones que no son actualidad (deporte, televisión, ocio, compras...). Se quitan de las
@@ -175,7 +176,7 @@ def preparar(edicion: str, datos: Path, ahora: dt.datetime | None = None) -> dic
         prensa = [e for e in todas if de_tema(e, tema) and e.get("lista") not in ("video", "analisis")
                   and (e.get("lista") == tema or not es_ruido(e))]
         desde_tema = min(desde, ahora - dt.timedelta(hours=tcfg["horas"])) if "horas" in tcfg else desde
-        texto, n = lista(prensa, desde_tema, cfg["max"], "horas" in tcfg, con_extracto)
+        texto, n = lista(prensa, desde_tema, MAX_TEMA, "horas" in tcfg, con_extracto)
         doc["listas"][tema], doc["cuentas"][tema] = texto, n
     # Historias: titulares del panel de las últimas 24 h agrupados por historia, con qué parte
     # de cada grupo del panel la cubre (base de la barra de espectro y los puntos ciegos).
