@@ -170,3 +170,11 @@ Desde el 21 de noviembre de 2026, los vídeos de los canales que sigue el recole
 - `seccion.videos`: vídeos de la sección que no encajan en ninguna noticia; llevan además `tema`.
 
 Cada vídeo: `canal`, `titulo` (original), `url`, `fecha` (AAAA-MM-DD), `trata` (de qué trata, una frase) y `postura` (opinión o enfoque que presenta el canal, una frase, atribuida). Se elaboran a partir del título y la descripción del vídeo, sin visionarlo: la página lo indica. `contenido.videos` (el antiguo bloque «Para ver») queda solo para ediciones anteriores.
+
+## Espectro de una noticia
+
+Sale de la lista «historias» del puente (`pyxis/historias.py`): titulares del panel de las últimas 24 horas agrupados por historia. Para cada grupo del panel se calcula qué proporción de sus medios publica la historia, y las tres proporciones se normalizan a 100. Mide quién cubre la historia, no cómo la cuenta.
+
+- En `contenido.secciones[].noticias[]`: `"espectro": {"izq": 31, "centro": 39, "dcha": 31, "medios": 15, "cobertura": ["ABC", "El País", …]}`.
+- En `noticias[]` del primer nivel, los mismos campos sueltos (`izq`, `centro`, `dcha`, `medios`, `cobertura`), que usan el archivo y el filtro de puntos ciegos.
+- Punto ciego: al menos 3 medios y un lado con el 70 % o más. El coordinador lo comprueba en la lista del panel antes de copiarlo.

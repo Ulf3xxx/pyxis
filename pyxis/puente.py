@@ -25,6 +25,8 @@ from collections import defaultdict
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+from .historias import lista_historias
+
 MADRID = ZoneInfo("Europe/Madrid")
 # Ventana de novedades (hora de Madrid) y máximo de titulares por medio
 EDICIONES = {
@@ -135,7 +137,7 @@ def preparar(edicion: str, datos: Path, ahora: dt.datetime | None = None) -> dic
         "fecha": hoy.isoformat(),
         "generado": ahora.strftime("%Y-%m-%d %H:%M"),
         "ventana_desde": desde.strftime("%Y-%m-%d %H:%M"),
-        "formato": "Cada línea: hora de Madrid | medio | titular | url, y a veces « — extracto» (medios que no se suelen poder abrir). Análisis: últimos 7 días, con día. Vídeo: los de la ventana de la edición, con día y « — descripción» del canal.",
+        "formato": "Cada línea: hora de Madrid | medio | titular | url, y a veces « — extracto» (medios que no se suelen poder abrir). Análisis: últimos 7 días, con día. Vídeo: los de la ventana de la edición, con día y « — descripción» del canal. Historias: titulares del panel de las últimas 24 h agrupados por historia; cada línea: nº de medios | medios de cada grupo que la cubren / medios del grupo | % izq·centro·dcha (proporciones normalizadas) | aviso de punto ciego si lo hay | titular representativo | medios.",
         "listas": {},
         "cuentas": {},
     }
@@ -143,6 +145,16 @@ def preparar(edicion: str, datos: Path, ahora: dt.datetime | None = None) -> dic
         prensa = [e for e in todas if e.get("lista") == nombre and not es_ruido(e)]
         texto, n = lista(prensa, desde, cfg["max"], False, con_extracto)
         doc["listas"][nombre], doc["cuentas"][nombre] = texto, n
+    # Historias: titulares del panel de las últimas 24 h agrupados por historia, con qué parte
+    # de cada grupo del panel la cubre (base de la barra de espectro y los puntos ciegos).
+    panel_cfg = datos / "config" / "panel.json"
+    if panel_cfg.exists():
+        grupos = {m["nombre"]: m["grupo"] for m in json.loads(panel_cfg.read_text(encoding="utf-8"))["medios"]}
+        hace24 = ahora - dt.timedelta(hours=24)
+        recientes = [e for e in todas if e.get("lista") == "panel" and not es_ruido(e)
+                     and (_fecha(e) or hace24) >= hace24]
+        texto, n = lista_historias(recientes, grupos, corta=lambda t: _corta(t, MAX_TITULAR))
+        doc["listas"]["historias"], doc["cuentas"]["historias"] = texto, n
     texto, n = lista([e for e in todas if e.get("lista") == "analisis"], desde_largo, MAX_LARGOS, True)
     doc["listas"]["analisis"], doc["cuentas"]["analisis"] = texto, n
     # Vídeos: solo los de la ventana de la edición, con su descripción (para clasificarlos y
