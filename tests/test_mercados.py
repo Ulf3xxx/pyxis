@@ -29,3 +29,12 @@ def test_compacta_semanal():
     from pyxis.mercados import compacta
     datos = [(dt.date(2026, 11, 2) + dt.timedelta(days=i), float(i)) for i in range(15)]
     assert compacta(datos) == "20261108:6;20261115:13;20261116:14"
+
+
+def test_alphavantage_y_acumular():
+    from pyxis.mercados import acumular, parsear_alphavantage
+    t = "timestamp,open,high,low,close,volume\n2026-11-20,1,1,1,300.5,10\n2026-11-19,1,1,1,299,10\n"
+    nuevos = parsear_alphavantage(t)
+    assert nuevos == [(dt.date(2026, 11, 19), 299.0), (dt.date(2026, 11, 20), 300.5)]
+    assert parsear_alphavantage('{"Information": "límite"}') == []
+    assert acumular([(dt.date(2026, 11, 18), 290.0), (dt.date(2026, 11, 19), 1.0)], nuevos)[1] == (dt.date(2026, 11, 19), 299.0)

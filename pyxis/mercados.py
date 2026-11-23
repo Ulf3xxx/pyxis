@@ -6,6 +6,10 @@
 Fuentes (todas permiten la descarga automática en su robots.txt):
   - «fred»: Reserva Federal de San Luis (fredgraph.csv, sin clave).
   - «bce»: portal de datos del Banco Central Europeo (data-api.ecb.europa.eu).
+  - «alphavantage»: cotizaciones diarias de empresas (Alpha Vantage, clave en la variable de
+    entorno ALPHAVANTAGE_API_KEY). El plan gratuito da 100 cierres por petición, así que el
+    histórico se acumula día a día en el CSV de la serie. Pausa de 13 s entre peticiones
+    (límite de 5 por minuto). Sin clave, estas series se saltan.
   - «bde»: ficheros CSV del Banco de España (www.bde.es); "codigo" es «archivo.csv:SERIE»,
     por ejemplo «ti_1_6.csv:DBLEESI100000000IBDI.B» para el IBEX 35 diario.
 
@@ -24,6 +28,7 @@ import csv
 import datetime as dt
 import io
 import json
+import os
 import time
 import urllib.parse
 from pathlib import Path
@@ -36,7 +41,29 @@ URLS = {
     "fred": "https://fred.stlouisfed.org/graph/fredgraph.csv?id={codigo}",
     "bce": "https://data-api.ecb.europa.eu/service/data/{codigo}?format=csvdata&startPeriod={desde}",
     "bde": "https://www.bde.es/webbe/es/estadisticas/compartido/datos/csv/{archivo}",
+    "alphavantage": "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={codigo}"
+                    "&outputsize=compact&datatype=csv&apikey={clave}",
 }
+
+
+def parsear_alphavantage(texto: str) -> list[tuple[dt.date, float]]:
+    """CSV timestamp,open,high,low,close,volume. Si el texto es JSON, es un aviso o un error."""
+    if texto.lstrip().startswith("{"):
+        return []
+    salida = []
+    for f in csv.DictReader(io.StringIO(texto)):
+        try:
+            salida.append((dt.date.fromisoformat(f["timestamp"]), float(f["close"])))
+        except (KeyError, ValueError):
+            continue
+    return sorted(salida)
+
+
+def acumular(previos: list[tuple[dt.date, float]], nuevos: list[tuple[dt.date, float]]) -> list[tuple[dt.date, float]]:
+    """Une el histórico guardado con los datos nuevos; ante la misma fecha manda el nuevo."""
+    d = dict(previos)
+    d.update(nuevos)
+    return sorted(d.items())
 MESES_BDE = {m: i + 1 for i, m in enumerate(["ENE", "FEB", "MAR", "ABR", "MAY", "JUN",
                                               "JUL", "AGO", "SEP", "OCT", "NOV", "DIC"])}
 
@@ -132,7 +159,12 @@ def main(argv: list[str] | None = None) -> int:
     hemeroteca: dict[str, dict] = {}
     for s in series:
         archivo, _, serie_bde = s["codigo"].partition(":")
-        url = URLS[s["fuente"]].format(codigo=s["codigo"], desde=desde, archivo=archivo)
+        clave = os.environ.get("ALPHAVANTAGE_API_KEY", "")
+        if s["fuente"] == "alphavantage" and not clave:
+            estado[s["id"]] = {"error": "sin clave ALPHAVANTAGE_API_KEY"}
+            continue
+        url = URLS[s["fuente"]].format(codigo=urllib.parse.quote(s["codigo"]), desde=desde,
+                                       archivo=archivo, clave=clave)
         permitido, _ = rob.permite(url)
         if not permitido:
             estado[s["id"]] = {"error": "robots.txt no lo permite"}
@@ -140,12 +172,23 @@ def main(argv: list[str] | None = None) -> int:
         codigo, _, cuerpo, error = descargar(url, 20_000_000)
         if not cuerpo or error:
             datos = []
+        elif s["fuente"] == "alphavantage":
+            texto = cuerpo.decode("utf-8", "replace")
+            datos = parsear_alphavantage(texto)
+            if not datos:
+                error = texto[:200].replace(clave, "***") if clave else texto[:200]
+            else:
+                previo = datos_dir / f"{s['id']}.csv"
+                if previo.exists():
+                    from pyxis.grafica import leer_csv
+                    datos = acumular(leer_csv(previo), datos)
+            time.sleep(13)
         elif s["fuente"] == "bde":
             datos = parsear_bde(cuerpo.decode("latin-1", "replace"), serie_bde)
         else:
             datos = parsear(s["fuente"], cuerpo.decode("utf-8", "replace"))
         if not datos:
-            estado[s["id"]] = {"error": error or f"sin datos (HTTP {codigo})"}
+            estado[s["id"]] = {"error": (error or f"sin datos (HTTP {codigo})").replace(clave, "***") if clave else (error or f"sin datos (HTTP {codigo})")}
             print(f"{s['id']:<14} ERROR {estado[s['id']]['error']}")
             continue
         with open(datos_dir / f"{s['id']}.csv", "w", encoding="utf-8", newline="") as fh:
