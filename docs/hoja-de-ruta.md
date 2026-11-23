@@ -16,7 +16,7 @@ El [esquema de datos](esquema.md) es lo que las une.
 | 3 | Exportar el archivo | Las ediciones y la configuración, guardadas como archivos JSON | Hecho: 21 ediciones, comprobadas byte a byte con la Hemeroteca |
 | 4 | Sincronización continua | Cada edición nueva se guarda también como archivo, sin copiar a mano | Hecho: copia diaria a las 21:12 (hora de Madrid) |
 | 5 | Visor independiente | Página web estática con buscador que lee los archivos JSON, con hilos básicos | Siguiente |
-| 6 | Recolector propio | Lectura de fuentes por RSS y páginas abiertas, con registro de qué fuente es accesible | Primera versión en marcha: 41 fuentes (RSS y Bluesky), cada tres horas |
+| 6 | Recolector propio | Lectura de fuentes por RSS y páginas abiertas, con registro de qué fuente es accesible | En marcha: 83 fuentes (RSS, Bluesky, portadas y 22 canales de YouTube por su API), cada tres horas; series de mercado diarias (FRED, BCE, Banco de España y Alpha Vantage) |
 | 7 | Motor de ediciones | Redacción con un modelo de lenguaje intercambiable (de pago o local) | Pendiente |
 | 8 | Capa de conocimiento | Hechos, hilos y relaciones; agrupación de titulares por historia con barra de espectro y rasgos de sesgo; radar semanal con mapas | Pendiente |
 | 9 | Servicio | Instalación sencilla, acceso para un grupo pequeño, documentación | Pendiente |
@@ -25,6 +25,23 @@ El [esquema de datos](esquema.md) es lo que las une.
 
 - La edición de la mañana parte de los titulares del recolector antes de buscar.
 - Las ediciones de mediodía y noche ya no se redactan desde cero: copian la edición anterior del día y solo añaden novedades o actualizan noticias (campos `base` y `estado`, ver el [esquema](esquema.md)). Dos subagentes en lugar de cuatro.
+
+## Estado a 23 de noviembre de 2026
+
+- Las ediciones usan el recolector desde el 19 de noviembre, a través de una tarea puente que copia las listas a la base de datos de la Hemeroteca. Las fuentes marcadas como no accesibles bajaron de unas 30 a menos de 10 por edición.
+- Los vídeos de YouTube van junto a las noticias, con de qué tratan y la postura del canal (desde el 21 de noviembre).
+- Gráficas de mercado en las noticias de economía (desde el 22 de noviembre).
+- Bolsamanía como fuente principal de Economía (desde el 23 de noviembre).
+- Uso de GitHub Actions: unos 25 minutos al día (algo más de un tercio del límite gratuito).
+
+## Orden de trabajo (revisado el 23 de noviembre de 2026)
+
+1. Consolidar: revisar unos días las ediciones con vídeos, gráficas y Bolsamanía; quitar ruido de los feeds (deporte, televisión, ofertas) usando feeds de sección.
+2. Equilibrar el panel en el recolector: faltan 4 de los 8 medios de izquierda (El País, Público, Cadena SER, El Periódico), 2 de centro (EFE, RTVE) y 1 de derecha (Vozpópuli). Buscar vías legítimas (cuentas públicas, portadas).
+3. Agrupar los titulares del recolector por historia: base para recuperar la barra de espectro, los puntos ciegos y los rasgos de sesgo.
+4. Hilos: seguir una historia a lo largo de los días en la Hemeroteca.
+5. Radar semanal con mapas.
+6. Visor independiente y motor de ediciones intercambiable (pasos 5 y 7).
 
 ## Líneas de trabajo añadidas
 
