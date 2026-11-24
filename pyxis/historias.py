@@ -28,7 +28,8 @@ seran puede pueden hace hacer va van ante sus nuevo nueva nuevos nuevas mismo mi
 directo ultima hora video videos foto fotos asi esto claves todo lo que sabemos minuto""".split())
 
 
-UMBRAL = 0.30      # parecido mínimo (coseno) para unir un titular a una historia
+UMBRAL = 0.26      # parecido mínimo (coseno) para unir un titular a una historia
+FUSION = 0.45      # parecido mínimo entre dos historias (centroides) para fusionarlas en una segunda pasada
 MIN_MEDIOS = 3     # una historia entra en la lista si la cubren al menos estos medios
 MAX_HISTORIAS = 40
 PUNTO_CIEGO = 70   # % de la cobertura normalizada en un solo lado (igual que la Hemeroteca)
@@ -54,7 +55,7 @@ def _coseno(a: dict[str, float], b: dict[str, float]) -> float:
     return sum(x * b.get(w, 0.0) for w, x in a.items())
 
 
-def agrupar(entradas: list[dict], umbral: float = UMBRAL) -> list[dict]:
+def agrupar(entradas: list[dict], umbral: float = UMBRAL, fusion: float = FUSION) -> list[dict]:
     """entradas: dicts con titulo, extracto, medio, url, fecha. Devuelve historias."""
     docs = [_normaliza(e["titulo"] + " " + e["titulo"] + " " + (e.get("extracto") or "")[:200]) for e in entradas]
     df = Counter(w for d in docs for w in set(d))
@@ -79,6 +80,25 @@ def agrupar(entradas: list[dict], umbral: float = UMBRAL) -> list[dict]:
             mejor["centro"] = {w: x / norma for w, x in c.items()}
         else:
             historias.append({"items": [i], "centro": dict(vecs[i])})
+    # Segunda pasada: une historias partidas (mismo hecho contado con palabras distintas al principio).
+    fusionadas = True
+    while fusionadas:
+        fusionadas = False
+        historias.sort(key=lambda h: -len(h["items"]))
+        for a in range(len(historias)):
+            for b in range(a + 1, len(historias)):
+                if _coseno(historias[a]["centro"], historias[b]["centro"]) >= fusion:
+                    historias[a]["items"] += historias.pop(b)["items"]
+                    c = defaultdict(float)
+                    for j in historias[a]["items"]:
+                        for w, x in vecs[j].items():
+                            c[w] += x
+                    norma = math.sqrt(sum(x * x for x in c.values())) or 1.0
+                    historias[a]["centro"] = {w: x / norma for w, x in c.items()}
+                    fusionadas = True
+                    break
+            if fusionadas:
+                break
     salida = []
     for h in historias:
         items = [entradas[i] for i in h["items"]]
@@ -114,7 +134,7 @@ def lista_historias(entradas: list[dict], grupos: dict[str, str], minimo: int = 
                     maximo: int = MAX_HISTORIAS, corta=lambda t: t) -> tuple[str, int]:
     """Texto para el puente: una línea por historia cubierta por al menos `minimo` medios.
 
-    «N medios | izq a/8 · centro b/11 · dcha c/8 | % izq·centro·dcha | [PUNTO CIEGO: ...] | titular | medios»
+    «N medios | izq x % · centro y % · dcha z % | (medios por grupo: izq a/9, …) | [PUNTO CIEGO: ...] | titular | medios»
     """
     lineas = []
     for h in agrupar([e for e in entradas if e.get("medio") in grupos]):
@@ -124,8 +144,8 @@ def lista_historias(entradas: list[dict], grupos: dict[str, str], minimo: int = 
         pg = c["por_grupo"]
         pc = punto_ciego(c)
         aviso = {"izq": "PUNTO CIEGO: casi solo izquierda", "dcha": "PUNTO CIEGO: casi solo derecha"}.get(pc)
-        partes = [f"{c['medios']} medios", f"izq {pg['izq']} · centro {pg['centro']} · dcha {pg['dcha']}",
-                  f"% {c['izq']}·{c['centro']}·{c['dcha']}"] + ([aviso] if aviso else []) + \
+        partes = [f"{c['medios']} medios", f"izq {c['izq']} % · centro {c['centro']} % · dcha {c['dcha']} %",
+                  f"(medios por grupo: izq {pg['izq']}, centro {pg['centro']}, dcha {pg['dcha']})"] + ([aviso] if aviso else []) + \
                  [corta(h["titular"]), ", ".join(h["medios"])]
         lineas.append(" | ".join(partes))
         if len(lineas) >= maximo:

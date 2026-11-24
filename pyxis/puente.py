@@ -163,7 +163,7 @@ def preparar(edicion: str, datos: Path, ahora: dt.datetime | None = None) -> dic
         "fecha": hoy.isoformat(),
         "generado": ahora.strftime("%Y-%m-%d %H:%M"),
         "ventana_desde": desde.strftime("%Y-%m-%d %H:%M"),
-        "formato": "Cada línea: hora de Madrid | medio | titular | url, y a veces « — extracto» (medios que no se suelen poder abrir). Análisis: últimos 7 días, con día. Listas temáticas (economia, ciencia, ia, ambiente, arquitectura, positivas): fuentes especializadas más las secciones de los medios generales; arquitectura y positivas, últimas 72 h, con día. Vídeo: los de la ventana de la edición, con día y « — descripción» del canal. Historias: titulares del panel de las últimas 24 h agrupados por historia; cada línea: nº de medios | medios de cada grupo que la cubren / medios del grupo | % izq·centro·dcha (proporciones normalizadas) | aviso de punto ciego si lo hay | titular representativo | medios.",
+        "formato": "Cada línea: hora de Madrid | medio | titular | url, y a veces « — extracto» (medios que no se suelen poder abrir). Análisis: últimos 7 días, con día. Listas temáticas (economia, ciencia, ia, ambiente, arquitectura, positivas): fuentes especializadas más las secciones de los medios generales; arquitectura y positivas, últimas 72 h, con día. Vídeo: los de la ventana de la edición, con día y « — descripción» del canal. Historias: titulares del panel de las últimas 24 h agrupados por historia; cada línea: nº de medios | % izq·centro·dcha (proporción de medios de cada grupo, normalizada a 100) | medios por grupo | aviso de punto ciego si lo hay | titular representativo | medios.",
         "listas": {},
         "cuentas": {},
     }

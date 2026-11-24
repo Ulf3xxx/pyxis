@@ -31,5 +31,5 @@ def test_cobertura_normaliza_por_tamano_de_grupo():
 def test_lista_historias_formato():
     E = [e(m, "Lanzan cócteles molotov contra la comisaría de Palencia") for m in ("A", "D", "E")]
     texto, n = lista_historias(E, dict(G, F="dcha"))
-    assert n == 1 and texto.startswith("3 medios | izq 1/2 · centro 0/1 · dcha 2/3")
+    assert n == 1 and texto.startswith("3 medios | izq 43 % · centro 0 % · dcha 57 % | (medios por grupo: izq 1/2, centro 0/1, dcha 2/3)")
     assert texto.endswith("A, D, E")
